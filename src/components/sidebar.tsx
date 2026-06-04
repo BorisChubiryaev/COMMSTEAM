@@ -8,6 +8,7 @@ import {
   Users,
   Archive,
   BarChart3,
+  Newspaper,
   Menu,
   X,
   Zap,
@@ -19,6 +20,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const navItems = [
   { id: 'kanban' as const, icon: LayoutDashboard, label: 'Канбан', emoji: '📋', color: '#FF6B35' },
+  { id: 'news' as const, icon: Newspaper, label: 'Новости', emoji: '🗞️', color: '#00C9A7' },
   { id: 'calendar' as const, icon: Calendar, label: 'Календарь', emoji: '📅', color: '#00C9A7' },
   { id: 'contacts' as const, icon: Users, label: 'Контакты', emoji: '👥', color: '#A78BFA' },
   { id: 'archive' as const, icon: Archive, label: 'Архив', emoji: '📦', color: '#9CA3AF' },

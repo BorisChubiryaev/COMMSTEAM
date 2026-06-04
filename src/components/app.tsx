@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore, STATUS_LABELS, STATUSES, PRIORITY_COLORS, PRIORITY_BG, type Section } from '@/lib/store'
 import { Sidebar } from '@/components/sidebar'
 import { KanbanBoard } from '@/components/sections/kanban-board'
+import { NewsFeedSection } from '@/components/sections/news-feed-section'
 import { CalendarSection } from '@/components/sections/calendar-section'
 import { ContactsSection } from '@/components/sections/contacts-section'
 import { ArchiveSection } from '@/components/sections/archive-section'
@@ -57,11 +58,11 @@ export function App() {
           searchInput?.focus()
         }, 100)
       }
-      // Ctrl+1-6: Navigate sections
+      // Ctrl+1-7: Navigate sections
       if (e.ctrlKey || e.metaKey) {
-        const sections: Section[] = ['kanban', 'calendar', 'contacts', 'archive', 'analytics', 'help']
+        const sections: Section[] = ['kanban', 'news', 'calendar', 'contacts', 'archive', 'analytics', 'help']
         const num = parseInt(e.key)
-        if (num >= 1 && num <= 6) {
+        if (num >= 1 && num <= sections.length) {
           e.preventDefault()
           setActiveSection(sections[num - 1])
         }
@@ -133,6 +134,7 @@ export function App() {
   const renderSection = () => {
     switch (activeSection) {
       case 'kanban': return <KanbanBoard />
+      case 'news': return <NewsFeedSection />
       case 'calendar': return <CalendarSection />
       case 'contacts': return <ContactsSection />
       case 'archive': return <ArchiveSection />
@@ -185,6 +187,7 @@ export function App() {
         <div className="flex-1 flex items-center gap-2">
           <h2 className="comic-title text-lg text-[#FF6B35] hidden sm:block">
             {activeSection === 'kanban' && '📋 Канбан-доска'}
+            {activeSection === 'news' && '🗞️ Новостной поток'}
             {activeSection === 'calendar' && '📅 Календарь'}
             {activeSection === 'contacts' && '👥 Контакты'}
             {activeSection === 'archive' && '📦 Архив'}
@@ -1070,7 +1073,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
 function KeyboardShortcutsOverlay({ onClose }: { onClose: () => void }) {
   const shortcuts = [
     { category: '🚀 Навигация', items: [
-      { keys: 'Ctrl + 1-6', desc: 'Переключение секций' },
+      { keys: 'Ctrl + 1-7', desc: 'Переключение секций' },
       { keys: 'Ctrl + K', desc: 'Поиск сигналов' },
       { keys: 'Ctrl + /', desc: 'Показать эту справку' },
     ]},

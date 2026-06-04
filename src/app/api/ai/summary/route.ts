@@ -1,4 +1,5 @@
 import { OpenRouterError, createOpenRouterCompletion } from '@/lib/openrouter'
+import { extractArticleFromUrl } from '@/lib/article-extractor'
 
 export async function POST(req: Request) {
   try {
@@ -9,9 +10,25 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Text or link required' }, { status: 400 })
     }
 
-    const prompt = link
-      ? `Сделай краткое саммари новости по ссылке: ${link}\n${text ? `Дополнительный контекст: ${text}` : ''}`
-      : `Сделай краткое саммари новости (2-3 предложения):\n\n${text}`
+    let sourceText = text || ''
+
+    if (link) {
+      try {
+        const article = await extractArticleFromUrl(link)
+        sourceText = [
+          `Ссылка: ${article.url}`,
+          article.title ? `Заголовок: ${article.title}` : '',
+          article.description ? `Описание: ${article.description}` : '',
+          text ? `Дополнительный контекст пользователя: ${text}` : '',
+          `Текст новости:\n${article.text}`,
+        ].filter(Boolean).join('\n\n')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось открыть ссылку'
+        return Response.json({ error: message }, { status: 422 })
+      }
+    }
+
+    const prompt = `Сделай краткое саммари новости (2-3 предложения) строго по тексту ниже. Не используй знания о других новостях и не выдумывай факты.\n\n${sourceText}`
 
     const summary = await createOpenRouterCompletion({
       messages: [
