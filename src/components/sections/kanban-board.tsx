@@ -1,0 +1,425 @@
+'use client'
+
+import { useAppStore, STATUS_LABELS, PRIORITY_COLORS, PRIORITY_BG } from '@/lib/store'
+import { cn } from '@/lib/utils'
+import { useState, useMemo } from 'react'
+import { Plus, Filter, Search, TrendingUp, Clock, Zap, GripVertical } from 'lucide-react'
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+const KANBAN_COLUMNS = [
+  { status: 'input', label: '📥 Входящее', color: '#9CA3AF', description: 'Новые сигналы' },
+  { status: 'classification', label: '🏷️ Классификация', color: '#60A5FA', description: 'Определение типа' },
+  { status: 'evaluation', label: '⚡ Оценка', color: '#FBBF24', description: 'Фильтр и приоритет' },
+  { status: 'meaning', label: '🧠 Смыслы', color: '#A78BFA', description: 'Карта смыслов' },
+  { status: 'distribution', label: '📡 Распределение', color: '#34D399', description: 'По направлениям' },
+  { status: 'launch', label: '🚀 Запуск', color: '#FF6B35', description: 'Публикация' },
+  { status: 'measurement', label: '📊 Измерение', color: '#00C9A7', description: 'Результаты' },
+  { status: 'feedback', label: '💬 Обратная связь', color: '#FF3F8E', description: 'Уроки' },
+  { status: 'completed', label: '✅ Завершено', color: '#4ECB71', description: 'Готово' },
+]
+
+const SOURCE_EMOJIS: Record<string, string> = {
+  'ДЗО': '🏢',
+  'Трабы/Команды': '👥',
+  'Мероприятия': '🎤',
+  'Тренды/Рынок': '📈',
+  'Задачи от руководства': '👔',
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  'Новость': 'bg-[#3B82F6]',
+  'Идея/Инициатива': 'bg-[#A78BFA]',
+  'Инфоповод': 'bg-[#F59E0B]',
+  'Задача/Поручение': 'bg-[#EF4444]',
+}
+
+// Sortable card component
+function SortableSignalCard({ signal, onClick }: { signal: any; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: signal.id,
+    data: { status: signal.status },
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'только что'
+    if (mins < 60) return `${mins} мин`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} ч`
+    const days = Math.floor(hours / 24)
+    if (days < 7) return `${days} д`
+    return new Date(dateStr).toLocaleDateString('ru')
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onClick}
+      className={cn(
+        "bg-card border-2 border-[var(--comic-border-color)] rounded-lg p-3 cursor-pointer comic-card-hover relative group",
+        isDragging && "dragging"
+      )}
+    >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-40 hover:!opacity-80 transition-opacity cursor-grab active:cursor-grabbing"
+        onClick={e => e.stopPropagation()}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </div>
+
+      {/* Priority indicator strip */}
+      {signal.priority && (
+        <div
+          className="absolute left-0 top-2 bottom-2 w-1 rounded-r"
+          style={{ backgroundColor: PRIORITY_BG[signal.priority as keyof typeof PRIORITY_BG] || '#ccc' }}
+        />
+      )}
+
+      {/* Title */}
+      <h4 className="text-sm font-bold mb-1.5 line-clamp-2 pl-2 group-hover:text-[#FF6B35] transition-colors">
+        {signal.title}
+      </h4>
+
+      {/* Badges */}
+      <div className="flex flex-wrap gap-1 mb-1.5 pl-2">
+        {signal.signalType && (
+          <span className={`text-[9px] px-1.5 py-0.5 rounded text-white font-bold ${TYPE_COLORS[signal.signalType] || 'bg-gray-400'}`}>
+            {signal.signalType}
+          </span>
+        )}
+        {signal.source && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--comic-tag-bg)] text-[var(--comic-tag-text)] flex items-center gap-0.5">
+            <span>{SOURCE_EMOJIS[signal.source] || '📌'}</span>
+            {signal.source}
+          </span>
+        )}
+      </div>
+
+      {/* AI Summary preview */}
+      {signal.aiSummary && (
+        <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1.5 pl-2 border-l-2 border-[#FF6B35]/30 italic">
+          🤖 {signal.aiSummary}
+        </p>
+      )}
+
+      {/* Meanings tags */}
+      {signal.meanings && (
+        <div className="flex flex-wrap gap-0.5 pl-2 mb-1.5">
+          {signal.meanings.split(',').filter(Boolean).slice(0, 3).map((m, i) => (
+            <span key={i} className="text-[8px] px-1.5 py-0.5 rounded-full bg-[#A78BFA]/15 text-[#A78BFA] font-medium">
+              {m.trim()}
+            </span>
+          ))}
+          {signal.meanings.split(',').filter(Boolean).length > 3 && (
+            <span className="text-[8px] px-1 py-0.5 rounded-full bg-[var(--comic-tag-bg)] text-muted-foreground">
+              +{signal.meanings.split(',').filter(Boolean).length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pl-2 pt-1.5 border-t border-border">
+        <span className="text-[9px] text-muted-foreground flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          {timeAgo(signal.createdAt)}
+        </span>
+        {signal.assignee && (
+          <div className="w-5 h-5 bg-[#FF6B35] rounded-full flex items-center justify-center text-white text-[8px] font-bold border border-[var(--comic-border-color)]" title={signal.assignee.name}>
+            {signal.assignee.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Drag overlay card
+function DragOverlayCard({ signal }: { signal: any }) {
+  return (
+    <div className="bg-card border-2 border-[#FF6B35] rounded-lg p-3 shadow-2xl dragging max-w-[280px]">
+      {signal.priority && (
+        <div
+          className="absolute left-0 top-2 bottom-2 w-1 rounded-r"
+          style={{ backgroundColor: PRIORITY_BG[signal.priority as keyof typeof PRIORITY_BG] || '#ccc' }}
+        />
+      )}
+      <h4 className="text-sm font-bold mb-1 pl-2">{signal.title}</h4>
+      <div className="flex flex-wrap gap-1 pl-2">
+        {signal.signalType && (
+          <span className={`text-[9px] px-1.5 py-0.5 rounded text-white font-bold ${TYPE_COLORS[signal.signalType] || 'bg-gray-400'}`}>
+            {signal.signalType}
+          </span>
+        )}
+        {signal.priority && (
+          <span className={`text-[9px] px-1.5 py-0.5 rounded text-white font-bold ${PRIORITY_COLORS[signal.priority as keyof typeof PRIORITY_COLORS]}`}>
+            {signal.priority}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function KanbanBoard() {
+  const { signals, setSelectedSignalId, updateSignal, setSignals } = useAppStore()
+  const [filterPriority, setFilterPriority] = useState<string | null>(null)
+  const [filterSource, setFilterSource] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  )
+
+  const filteredSignals = useMemo(() => signals.filter(s => {
+    if (s.status === 'archived') return false
+    if (filterPriority && s.priority !== filterPriority) return false
+    if (filterSource && s.source !== filterSource) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      return s.title.toLowerCase().includes(q) ||
+        s.content?.toLowerCase().includes(q) ||
+        s.aiSummary?.toLowerCase().includes(q) ||
+        s.source?.toLowerCase().includes(q) ||
+        s.signalType?.toLowerCase().includes(q)
+    }
+    return true
+  }), [signals, filterPriority, filterSource, searchQuery])
+
+  const activeSignals = signals.filter(s => s.status !== 'archived')
+  const urgentCount = activeSignals.filter(s => s.priority === 'A').length
+  const todayCount = activeSignals.filter(s => {
+    const d = new Date(s.createdAt)
+    const today = new Date()
+    return d.toDateString() === today.toDateString()
+  }).length
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over) return
+
+    const activeSignal = signals.find(s => s.id === active.id)
+    if (!activeSignal) return
+
+    // Check if dropped on a column
+    const overData = over.data.current
+    const targetStatus = overData?.status as string | undefined
+
+    if (targetStatus && targetStatus !== activeSignal.status) {
+      try {
+        const res = await fetch(`/api/signals/${activeSignal.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: targetStatus }),
+        })
+        if (res.ok) {
+          const updated = await res.json()
+          updateSignal(updated)
+          setSignals(signals.map(s => s.id === updated.id ? updated : s))
+        }
+      } catch (err) {
+        console.error('Failed to move signal:', err)
+      }
+    }
+  }
+
+  const activeSignal = activeId ? signals.find(s => s.id === activeId) : null
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="h-full flex flex-col">
+        {/* Stats bar */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+            <Zap className="w-4 h-4 text-[#FF6B35]" />
+            <span className="text-sm font-bold">{activeSignals.length}</span>
+            <span className="text-xs text-muted-foreground">сигналов</span>
+          </div>
+          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+            <TrendingUp className="w-4 h-4 text-[#EF4444]" />
+            <span className="text-sm font-bold text-[#EF4444]">{urgentCount}</span>
+            <span className="text-xs text-muted-foreground">срочных</span>
+          </div>
+          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+            <Clock className="w-4 h-4 text-[#00C9A7]" />
+            <span className="text-sm font-bold text-[#00C9A7]">{todayCount}</span>
+            <span className="text-xs text-muted-foreground">сегодня</span>
+          </div>
+        </div>
+
+        {/* Search & Filters */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#FF6B35] bg-[var(--comic-input-bg)] text-foreground"
+              placeholder="Поиск сигналов..."
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={cn(
+              "comic-btn text-xs px-3 py-2 flex items-center gap-1",
+              showFilters ? "bg-[#FF6B35] text-white" : "bg-card text-foreground"
+            )}
+          >
+            <Filter className="w-3 h-3" />
+            Фильтры
+            {(filterPriority || filterSource) && (
+              <span className="w-2 h-2 bg-[#FF3F8E] rounded-full" />
+            )}
+          </button>
+        </div>
+
+        {/* Expandable Filters */}
+        {showFilters && (
+          <div className="mb-4 p-3 bg-card comic-border comic-shadow-sm space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-muted-foreground">Приоритет:</span>
+              <button
+                onClick={() => setFilterPriority(null)}
+                className={cn("text-xs px-2 py-1 rounded-lg border-2 border-[var(--comic-border-color)] transition-all", !filterPriority ? "bg-[var(--comic-border-color)] text-white comic-shadow-sm" : "bg-card text-muted-foreground hover:bg-[var(--comic-bg-hover)]")}
+              >
+                Все
+              </button>
+              {['A', 'B', 'C', 'Отклонено'].map(p => (
+                <button
+                  key={p}
+                  onClick={() => setFilterPriority(filterPriority === p ? null : p)}
+                  className={cn("text-xs px-2.5 py-1 rounded-lg border-2 border-[var(--comic-border-color)] font-bold transition-all", filterPriority === p ? "text-white comic-shadow-sm" : "bg-card text-muted-foreground hover:bg-[var(--comic-bg-hover)]")}
+                  style={filterPriority === p ? { backgroundColor: PRIORITY_BG[p as keyof typeof PRIORITY_BG] } : {}}
+                >
+                  {p === 'Отклонено' ? '✕' : p}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-muted-foreground">Источник:</span>
+              {['ДЗО', 'Трабы/Команды', 'Мероприятия', 'Тренды/Рынок', 'Задачи от руководства'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setFilterSource(filterSource === s ? null : s)}
+                  className={cn("text-xs px-2 py-1 rounded-lg border-2 border-[var(--comic-border-color)] transition-all flex items-center gap-1", filterSource === s ? "bg-[#00C9A7] text-white comic-shadow-sm" : "bg-card text-muted-foreground hover:bg-[var(--comic-bg-hover)]")}
+                >
+                  <span>{SOURCE_EMOJIS[s] || '📌'}</span>
+                  {s}
+                </button>
+              ))}
+            </div>
+            {(filterPriority || filterSource) && (
+              <button
+                onClick={() => { setFilterPriority(null); setFilterSource(null) }}
+                className="text-xs text-[#FF3F8E] underline"
+              >
+                Сбросить фильтры
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Kanban columns */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-3 h-full min-w-max pb-4">
+            {KANBAN_COLUMNS.map((col) => {
+              const colSignals = filteredSignals.filter(s => s.status === col.status)
+              return (
+                <div
+                  key={col.status}
+                  className="w-[280px] flex-shrink-0 flex flex-col"
+                  data-status={col.status}
+                >
+                  {/* Column header */}
+                  <div
+                    className="px-3 py-2.5 rounded-t-xl border-2 border-b-0 border-[var(--comic-border-color)] relative overflow-hidden"
+                    style={{ backgroundColor: col.color + '15' }}
+                  >
+                    {/* Decorative stripe */}
+                    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: col.color }} />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{col.label}</span>
+                      <span
+                        className="ml-auto text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[var(--comic-border-color)]"
+                        style={{ backgroundColor: colSignals.length > 0 ? col.color : 'var(--comic-tag-bg)', color: colSignals.length > 0 ? 'white' : 'var(--comic-text-muted)' }}
+                      >
+                        {colSignals.length}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{col.description}</p>
+                  </div>
+
+                  {/* Column body - droppable area */}
+                  <SortableContext
+                    items={colSignals.map(s => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div
+                      className="flex-1 bg-[var(--comic-column-bg)] border-2 border-t-0 border-[var(--comic-border-color)] rounded-b-xl p-2 space-y-2 overflow-y-auto custom-scrollbar kanban-column"
+                      style={{ borderLeftColor: col.color + '40' }}
+                      data-status={col.status}
+                    >
+                      {colSignals.map(signal => (
+                        <SortableSignalCard
+                          key={signal.id}
+                          signal={signal}
+                          onClick={() => setSelectedSignalId(signal.id)}
+                        />
+                      ))}
+
+                      {colSignals.length === 0 && (
+                        <div className="text-center py-8">
+                          <div className="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center" style={{ backgroundColor: col.color + '15' }}>
+                            <span className="text-xl opacity-40">
+                              {col.status === 'input' ? '📭' : col.status === 'completed' ? '🎯' : '✨'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground/50 font-medium">Пусто</p>
+                          <p className="text-[9px] text-muted-foreground/30 mt-0.5">{col.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </SortableContext>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Drag overlay - shows the card being dragged */}
+      <DragOverlay>
+        {activeSignal ? <DragOverlayCard signal={activeSignal} /> : null}
+      </DragOverlay>
+    </DndContext>
+  )
+}

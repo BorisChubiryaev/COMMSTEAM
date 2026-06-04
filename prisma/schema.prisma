@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  avatar    String?
+  role      String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  signals   Signal[] @relation("SignalAssignee")
+  comments  Comment[]
+  events    Event[]
+}
+
+model Signal {
+  id               String        @id @default(cuid())
+  title            String
+  content          String?
+  link             String?
+  aiSummary        String?
+
+  // Source
+  source           String?       // ДЗО, Трабы/Команды, Мероприятия, Тренды/Рынок, Задачи от руководства
+
+  // Signal type
+  signalType       String?       // Новость, Идея/Инициатива, Инфоповод, Задача/Поручение
+
+  // Evaluation / Filter
+  relevance        Int?          // 1-5 актуальность и значимость
+  alignment        Int?          // 1-5 соответствие смыслам и целям
+  urgency          Int?          // 1-5 срочность
+  potential        String?       // PR, HR, Продукт, Репутация (comma separated)
+  risks            String?       // риски и чувствительность
+
+  // Priority
+  priority         String?       // A, B, C, Отклонено
+
+  // Meanings (comma-separated keys)
+  meanings         String?       // ИИ, RecSys, СберID, Персонализация, Безопасность, HR-бренд, Технологическое лидерство
+
+  // Distribution
+  distribution     String?       // PR, Маркетинг, Внутриком (comma separated)
+
+  // Launch
+  publicationType  String?       // Посты в соцсетях, Статья, Пресс-релиз, Выступление, Внутренняя коммуникация, Мероприятие/Митап, Реклама
+  aiContent        String?       // AI-generated content for publication
+
+  // Status (workflow stage)
+  status           String        @default("input") // input, classification, evaluation, meaning, distribution, launch, measurement, feedback, completed, archived
+
+  // Measurement
+  reach            Int?
+  engagement       Int?
+  mediaMentions    Int?
+  traffic          Int?
+  leads            Int?
+  businessImpact   String?
+
+  // Feedback
+  whatWorked       String?
+  whatDidntWork    String?
+  newInsights      String?
+  meaningMapUpdate String?
+
+  // Relations
+  assigneeId       String?
+  assignee         TeamMember?   @relation("SignalAssignee", fields: [assigneeId], references: [id])
+  comments         Comment[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model Contact {
+  id          String    @id @default(cuid())
+  name        String
+  company     String?
+  role        String?
+  email       String?
+  phone       String?
+  telegram    String?
+  notes       String?
+  tags        String?   // comma separated
+  comments    Comment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  location    String?
+  type        String?     // Мероприятие, Митап, Выступление, Встреча
+  status      String      @default("planned") // planned, confirmed, completed, cancelled
+  organizerId String?
+  organizer   TeamMember? @relation(fields: [organizerId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Comment {
+  id         String      @id @default(cuid())
+  content    String
+  authorId   String
+  author     TeamMember  @relation(fields: [authorId], references: [id])
+  signalId   String?
+  signal     Signal?     @relation(fields: [signalId], references: [id])
+  contactId  String?
+  contact    Contact?    @relation(fields: [contactId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model PeriodSummary {
+  id          String   @id @default(cuid())
+  title       String
+  periodStart DateTime
+  periodEnd   DateTime
+  aiSummary   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

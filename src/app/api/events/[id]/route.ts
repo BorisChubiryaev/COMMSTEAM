@@ -1,0 +1,25 @@
+import { db } from '@/lib/db'
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const body = await req.json()
+  const data: Record<string, any> = {}
+  const allowedFields = ['title', 'description', 'date', 'endDate', 'location', 'type', 'status', 'organizerId']
+  for (const field of allowedFields) {
+    if (field in body) {
+      data[field] = field === 'date' || field === 'endDate' ? new Date(body[field]) : body[field]
+    }
+  }
+  const event = await db.event.update({
+    where: { id },
+    data,
+    include: { organizer: true },
+  })
+  return Response.json(event)
+}
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  await db.event.delete({ where: { id } })
+  return Response.json({ success: true })
+}
