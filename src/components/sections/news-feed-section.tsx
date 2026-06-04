@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, Link2, Loader2, Newspaper, Plus, RefreshCw, Send, Trash2, X } from 'lucide-react'
+import { Check, ExternalLink, Link2, Loader2, Newspaper, Pencil, Plus, RefreshCw, Send, Trash2, X } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { useAppStore } from '@/lib/store'
 import { MarkdownContent } from '@/components/markdown-content'
@@ -51,6 +51,8 @@ export function NewsFeedSection() {
   const [results, setResults] = useState<SourceResult[]>([])
   const [loading, setLoading] = useState(false)
   const [creatingUrl, setCreatingUrl] = useState<string | null>(null)
+  const [editingSource, setEditingSource] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState('')
 
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
@@ -83,6 +85,47 @@ export function NewsFeedSection() {
 
   const removeSource = (source: string) => {
     setSources(prev => prev.filter(item => item !== source))
+    if (editingSource === source) {
+      setEditingSource(null)
+      setEditingValue('')
+    }
+  }
+
+  const startEditSource = (source: string) => {
+    setEditingSource(source)
+    setEditingValue(source)
+  }
+
+  const cancelEditSource = () => {
+    setEditingSource(null)
+    setEditingValue('')
+  }
+
+  const saveEditSource = () => {
+    if (!editingSource) return
+
+    const normalized = normalizeSource(editingValue)
+    if (!normalized) {
+      toast({
+        title: 'Некорректная ссылка',
+        description: 'Вставьте URL новости или новостного раздела',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const alreadyExists = sources.some(source => source === normalized && source !== editingSource)
+    if (alreadyExists) {
+      toast({
+        title: 'Источник уже есть',
+        description: 'Такая ссылка уже добавлена в список',
+      })
+      cancelEditSource()
+      return
+    }
+
+    setSources(prev => prev.map(source => source === editingSource ? normalized : source))
+    cancelEditSource()
   }
 
   const parseNews = async () => {
@@ -250,18 +293,65 @@ export function NewsFeedSection() {
                   return (
                     <div key={source} className="flex items-center gap-2 rounded-md bg-[var(--comic-bg)] border border-[var(--comic-border-color)]/10 px-2 py-2">
                       <Link2 className="w-3.5 h-3.5 text-[#00C9A7] flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate">{sourceName}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{source}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeSource(source)}
-                        className="text-muted-foreground hover:text-[#EF4444] p-1"
-                        title="Удалить источник"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      {editingSource === source ? (
+                        <>
+                          <input
+                            value={editingValue}
+                            onChange={event => setEditingValue(event.target.value)}
+                            onKeyDown={event => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault()
+                                saveEditSource()
+                              }
+                              if (event.key === 'Escape') {
+                                event.preventDefault()
+                                cancelEditSource()
+                              }
+                            }}
+                            className="min-w-0 flex-1 h-8 px-2 rounded border border-[var(--comic-border-color)]/25 bg-[var(--comic-input-bg)] text-xs focus:outline-none focus:border-[#00C9A7]"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={saveEditSource}
+                            className="text-muted-foreground hover:text-[#00C9A7] p-1"
+                            title="Сохранить"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditSource}
+                            className="text-muted-foreground hover:text-[#EF4444] p-1"
+                            title="Отменить"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold truncate">{sourceName}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{source}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => startEditSource(source)}
+                            className="text-muted-foreground hover:text-[#00C9A7] p-1"
+                            title="Редактировать источник"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSource(source)}
+                            className="text-muted-foreground hover:text-[#EF4444] p-1"
+                            title="Удалить источник"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   )
                 })
