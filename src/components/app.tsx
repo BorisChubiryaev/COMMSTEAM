@@ -511,6 +511,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
   const { selectedSignalId, signals, updateSignal, setSignals, currentUser } = useAppStore()
   const signal = signals.find(s => s.id === selectedSignalId)
   const [comment, setComment] = useState('')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
   const [aiContentLoading, setAiContentLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -636,6 +637,44 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }
 
+  const handleAnalyzeSignal = async () => {
+    if (!signal) return
+    setAnalysisLoading(true)
+    try {
+      const res = await fetch('/api/ai/analyze-signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signalId: signal.id }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        updateSignal(data.signal)
+        setSignals(signals.map(s => s.id === data.signal.id ? data.signal : s))
+        toast({
+          title: 'Разбор применён',
+          description: 'Поля сигнала заполнены рекомендацией. Проверьте и поправьте при необходимости.',
+        })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast({
+          title: 'Разбор не выполнен',
+          description: data.error || 'Проверьте OPENROUTER_API_KEY и AI_MODEL в окружении',
+          variant: 'destructive',
+        })
+      }
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Разбор не выполнен',
+        description: 'Не удалось подключиться к API анализа',
+        variant: 'destructive',
+      })
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
   if (!open || !signal) return null
 
   const statusSteps = ['input', 'classification', 'evaluation', 'meaning', 'distribution', 'launch', 'measurement', 'feedback', 'completed']
@@ -666,6 +705,15 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
               <h2 className="comic-title text-xl text-foreground">{signal.title}</h2>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleAnalyzeSignal}
+                disabled={analysisLoading}
+                className="comic-btn bg-[#00C9A7] hover:bg-[#00b896] text-white px-3 py-1.5 text-xs inline-flex items-center gap-1.5"
+                title="Заполнить поля рекомендацией ИИ"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {analysisLoading ? 'Разбор...' : 'Разобрать новость'}
+              </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="text-muted-foreground hover:text-[#EF4444] transition-colors p-1"
