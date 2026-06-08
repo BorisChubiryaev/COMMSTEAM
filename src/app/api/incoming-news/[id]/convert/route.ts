@@ -6,6 +6,10 @@ function toSignalSource(source: string | null) {
   return null
 }
 
+function pick<T>(preferred: T | null | undefined, fallback: T | null) {
+  return preferred ?? fallback
+}
+
 export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
   const incoming = await db.incomingNews.findUnique({
@@ -26,8 +30,18 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
       title: incoming.title,
       content: incoming.content,
       link: incoming.link,
-      source: toSignalSource(incoming.source),
-      signalType: 'Новость',
+      aiSummary: incoming.aiSummary,
+      source: pick(incoming.aiSource, toSignalSource(incoming.source)),
+      signalType: pick(incoming.aiSignalType, 'Новость'),
+      relevance: incoming.aiRelevance,
+      alignment: incoming.aiAlignment,
+      urgency: incoming.aiUrgency,
+      potential: incoming.aiPotential,
+      risks: incoming.aiRisks,
+      priority: incoming.aiPriority,
+      meanings: incoming.aiMeanings,
+      distribution: incoming.aiDistribution,
+      publicationType: incoming.aiPublicationType,
       status: 'input',
       incomingNews: {
         connect: { id: incoming.id },
@@ -46,6 +60,16 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
       signalId: signal.id,
     },
     include: { signal: true },
+  })
+
+  await db.decisionHistory.create({
+    data: {
+      incomingNewsId: incoming.id,
+      signalId: signal.id,
+      action: 'converted',
+      actor: 'user',
+      note: 'Новость отправлена в канбан',
+    },
   })
 
   return Response.json({ incomingNews: updatedIncoming, signal })

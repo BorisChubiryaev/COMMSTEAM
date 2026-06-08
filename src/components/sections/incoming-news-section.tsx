@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, Inbox, MessageCircle, RefreshCw, Send, Sparkles } from 'lucide-react'
+import { ExternalLink, History, Inbox, MessageCircle, RefreshCw, RotateCcw, Send, Sparkles, Trash2 } from 'lucide-react'
 import { useAppStore, type IncomingNews } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -34,11 +34,31 @@ function getSender(item: IncomingNews) {
   return [item.telegramFirstName, item.telegramLastName].filter(Boolean).join(' ') || 'Источник не указан'
 }
 
+function splitValues(value: string | null) {
+  return value ? value.split(',').map(item => item.trim()).filter(Boolean) : []
+}
+
+function decisionLabel(action: string) {
+  const labels: Record<string, string> = {
+    created: 'Добавлено',
+    auto_analyzed: 'AI-предразбор',
+    auto_analysis_failed: 'Ошибка AI',
+    marked_duplicate: 'Найден дубль',
+    converted: 'В канбан',
+    ignored: 'Скрыто',
+    restored: 'Возвращено',
+    edited: 'Изменено',
+  }
+  return labels[action] || action
+}
+
 export function IncomingNewsSection() {
   const { incomingNews, setIncomingNews, updateIncomingNews, signals, setSignals, setSelectedSignalId } = useAppStore()
   const [activeStatus, setActiveStatus] = useState<string>('new')
   const [loading, setLoading] = useState(false)
   const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const counts = useMemo(() => {
     return incomingNews.reduce<Record<string, number>>((acc, item) => {
@@ -91,6 +111,56 @@ export function IncomingNewsSection() {
       })
     } finally {
       setConvertingId(null)
+    }
+  }
+
+  const analyzeIncoming = async (item: IncomingNews) => {
+    setAnalyzingId(item.id)
+    try {
+      const res = await fetch(`/api/incoming-news/${item.id}/analyze`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Не удалось разобрать входящую новость')
+      }
+
+      updateIncomingNews(await res.json())
+      toast({ title: 'Предразбор обновлён', description: item.title })
+    } catch (err) {
+      console.error('Failed to analyze incoming news:', err)
+      toast({
+        title: 'Не удалось разобрать входящую',
+        description: err instanceof Error ? err.message : undefined,
+        variant: 'destructive',
+      })
+    } finally {
+      setAnalyzingId(null)
+    }
+  }
+
+  const updateIncomingStatus = async (item: IncomingNews, status: string, note: string) => {
+    setUpdatingId(item.id)
+    try {
+      const res = await fetch(`/api/incoming-news/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, note }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Не удалось обновить входящую новость')
+      }
+
+      updateIncomingNews(await res.json())
+      toast({ title: status === 'ignored' ? 'Новость скрыта' : 'Новость возвращена' })
+    } catch (err) {
+      console.error('Failed to update incoming news:', err)
+      toast({
+        title: 'Не удалось обновить входящую',
+        description: err instanceof Error ? err.message : undefined,
+        variant: 'destructive',
+      })
+    } finally {
+      setUpdatingId(null)
     }
   }
 
@@ -156,10 +226,59 @@ export function IncomingNewsSection() {
                 </div>
 
                 <h3 className="text-sm font-bold leading-snug">{item.title}</h3>
+                {item.status === 'duplicate' && (
+                  <div className="mt-2 rounded-lg border-2 border-[#FBBF24] bg-[#FBBF24]/10 px-3 py-2">
+                    <p className="text-xs font-bold text-[#92400E]">
+                      Похоже на дубль{item.duplicateScore ? ` (${item.duplicateScore}%)` : ''}
+                    </p>
+                    {item.duplicateReason && (
+                      <p className="mt-1 text-[11px] leading-relaxed text-[#92400E]">{item.duplicateReason}</p>
+                    )}
+                    {item.duplicateOf && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">Оригинал: {item.duplicateOf.title}</p>
+                    )}
+                  </div>
+                )}
                 {item.content && (
                   <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
                     {item.content}
                   </p>
+                )}
+
+                {(item.aiSummary || item.aiPriority || item.aiSignalType || item.aiMeanings) && (
+                  <div className="mt-3 rounded-lg border-2 border-[#00C9A7]/50 bg-[#00C9A7]/5 px-3 py-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded bg-[#00C9A7] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <Sparkles className="h-3 w-3" />
+                        Предразбор
+                      </span>
+                      {item.aiPriority && (
+                        <span className="rounded bg-[#FF6B35]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#FF6B35]">
+                          Приоритет {item.aiPriority}
+                        </span>
+                      )}
+                      {item.aiSignalType && (
+                        <span className="rounded bg-[var(--comic-tag-bg)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--comic-tag-text)]">
+                          {item.aiSignalType}
+                        </span>
+                      )}
+                    </div>
+                    {item.aiSummary && (
+                      <p className="text-xs leading-relaxed text-foreground">{item.aiSummary}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {splitValues(item.aiMeanings).slice(0, 3).map(value => (
+                        <span key={value} className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          {value}
+                        </span>
+                      ))}
+                      {splitValues(item.aiDistribution).map(value => (
+                        <span key={value} className="rounded bg-[#00A7E1]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#00A7E1]">
+                          {value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -176,10 +295,37 @@ export function IncomingNewsSection() {
                     </a>
                   )}
                 </div>
+
+                {item.decisionHistory && item.decisionHistory.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="inline-flex cursor-pointer items-center gap-1 text-[10px] font-bold text-muted-foreground hover:text-foreground">
+                      <History className="h-3 w-3" />
+                      История решений
+                    </summary>
+                    <div className="mt-2 space-y-1.5 border-l-2 border-[var(--comic-border-color)] pl-3">
+                      {item.decisionHistory.slice(0, 5).map(entry => (
+                        <div key={entry.id} className="text-[10px] leading-relaxed text-muted-foreground">
+                          <span className="font-bold text-foreground">{decisionLabel(entry.action)}</span>
+                          <span> · {entry.actor} · {formatDate(entry.createdAt)}</span>
+                          {entry.note && <div>{entry.note}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => analyzeIncoming(item)}
+                disabled={analyzingId === item.id || item.status === 'converted'}
+                className="comic-btn bg-[#00C9A7] hover:bg-[#00b896] text-white px-3 py-2 text-xs inline-flex items-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {analyzingId === item.id ? 'Разбор...' : 'Разобрать'}
+              </button>
               {item.signalId ? (
                 <button
                   type="button"
@@ -192,11 +338,32 @@ export function IncomingNewsSection() {
                 <button
                   type="button"
                   onClick={() => convertToSignal(item)}
-                  disabled={convertingId === item.id}
+                  disabled={convertingId === item.id || item.status === 'duplicate' || item.status === 'ignored'}
                   className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-3 py-2 text-xs inline-flex items-center gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" />
                   {convertingId === item.id ? 'Отправляем...' : 'В канбан'}
+                </button>
+              )}
+              {item.status === 'ignored' || item.status === 'duplicate' ? (
+                <button
+                  type="button"
+                  onClick={() => updateIncomingStatus(item, 'new', 'Вернули во входящие')}
+                  disabled={updatingId === item.id}
+                  className="comic-btn bg-card text-foreground px-3 py-2 text-xs inline-flex items-center gap-1.5"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Вернуть
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => updateIncomingStatus(item, 'ignored', 'Скрыли из входящих')}
+                  disabled={updatingId === item.id || item.status === 'converted'}
+                  className="comic-btn bg-[var(--comic-bg-hover)] text-foreground px-3 py-2 text-xs inline-flex items-center gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Скрыть
                 </button>
               )}
             </div>

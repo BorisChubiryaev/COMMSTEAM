@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { classifyIncomingNews } from '@/lib/incoming-news-intelligence'
+import { after } from 'next/server'
 
 type TelegramUser = {
   id?: number
@@ -121,6 +123,23 @@ export async function POST(req: Request) {
       telegramFirstName: message.from?.first_name || null,
       telegramLastName: message.from?.last_name || null,
     },
+  })
+
+  await db.decisionHistory.create({
+    data: {
+      incomingNewsId: item.id,
+      action: 'created',
+      actor: 'telegram',
+      note: `Новость получена от ${getTelegramName(message.from) || 'Telegram'}`,
+    },
+  })
+
+  after(async () => {
+    await classifyIncomingNews(item.id, {
+      title: item.title,
+      content: item.content,
+      link: item.link,
+    })
   })
 
   return telegramReply(

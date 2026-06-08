@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   keywords: ["коммуникации", "PR", "маркетинг", "канбан", "AI"],
   authors: [{ name: "CommsTeam Hub" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon.svg",
   },
 };
 

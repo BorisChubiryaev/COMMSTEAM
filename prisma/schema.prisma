@@ -75,6 +75,7 @@ model Signal {
   assignee         TeamMember?   @relation("SignalAssignee", fields: [assigneeId], references: [id])
   comments         Comment[]
   incomingNews     IncomingNews[]
+  decisionHistory  DecisionHistory[]
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -89,6 +90,28 @@ model IncomingNews {
   status            String   @default("new") // new, converted, duplicate, ignored
   rawPayload        String?
 
+  // AI pre-analysis
+  aiSummary         String?
+  aiSource          String?
+  aiSignalType      String?
+  aiRelevance       Int?
+  aiAlignment       Int?
+  aiUrgency         Int?
+  aiPotential       String?
+  aiRisks           String?
+  aiPriority        String?
+  aiMeanings        String?
+  aiDistribution    String?
+  aiPublicationType String?
+  aiAnalyzedAt      DateTime?
+
+  // Duplicate detection
+  duplicateScore    Int?
+  duplicateReason   String?
+  duplicateOfId     String?
+  duplicateOf       IncomingNews? @relation("IncomingNewsDuplicates", fields: [duplicateOfId], references: [id])
+  duplicates        IncomingNews[] @relation("IncomingNewsDuplicates")
+
   telegramChatId    String?
   telegramMessageId String?
   telegramUsername  String?
@@ -97,6 +120,7 @@ model IncomingNews {
 
   signalId          String?
   signal            Signal?  @relation(fields: [signalId], references: [id])
+  decisionHistory   DecisionHistory[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -104,6 +128,26 @@ model IncomingNews {
   @@unique([source, telegramChatId, telegramMessageId])
   @@index([status, createdAt])
   @@index([link])
+  @@index([duplicateOfId])
+  @@index([aiPriority])
+}
+
+model DecisionHistory {
+  id             String        @id @default(cuid())
+  action         String        // created, auto_analyzed, marked_duplicate, converted, ignored, restored, edited
+  actor          String        @default("system")
+  note           String?
+  metadata       String?
+
+  incomingNewsId String?
+  incomingNews   IncomingNews? @relation(fields: [incomingNewsId], references: [id], onDelete: Cascade)
+  signalId       String?
+  signal         Signal?       @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime      @default(now())
+
+  @@index([incomingNewsId, createdAt])
+  @@index([signalId, createdAt])
 }
 
 model Contact {

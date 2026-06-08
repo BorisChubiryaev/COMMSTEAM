@@ -41,6 +41,7 @@ export interface Signal {
   assigneeId: string | null
   assignee: TeamMember | null
   comments: Comment[]
+  decisionHistory?: DecisionHistory[]
   createdAt: string
   updatedAt: string
 }
@@ -53,6 +54,23 @@ export interface IncomingNews {
   source: string
   status: string
   rawPayload: string | null
+  aiSummary: string | null
+  aiSource: string | null
+  aiSignalType: string | null
+  aiRelevance: number | null
+  aiAlignment: number | null
+  aiUrgency: number | null
+  aiPotential: string | null
+  aiRisks: string | null
+  aiPriority: string | null
+  aiMeanings: string | null
+  aiDistribution: string | null
+  aiPublicationType: string | null
+  aiAnalyzedAt: string | null
+  duplicateScore: number | null
+  duplicateReason: string | null
+  duplicateOfId: string | null
+  duplicateOf: IncomingNews | null
   telegramChatId: string | null
   telegramMessageId: string | null
   telegramUsername: string | null
@@ -60,8 +78,20 @@ export interface IncomingNews {
   telegramLastName: string | null
   signalId: string | null
   signal: Signal | null
+  decisionHistory?: DecisionHistory[]
   createdAt: string
   updatedAt: string
+}
+
+export interface DecisionHistory {
+  id: string
+  action: string
+  actor: string
+  note: string | null
+  metadata: string | null
+  incomingNewsId: string | null
+  signalId: string | null
+  createdAt: string
 }
 
 export interface Contact {
