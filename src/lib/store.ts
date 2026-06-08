@@ -184,7 +184,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedSignalId: null,
   setSelectedSignalId: (id) => set({ selectedSignalId: id }),
   
-  sidebarOpen: true,
+  sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   

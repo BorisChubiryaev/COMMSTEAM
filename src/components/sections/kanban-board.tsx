@@ -322,6 +322,7 @@ export function KanbanBoard() {
   const [showFilters, setShowFilters] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'board' | 'graph'>('board')
+  const [mobileStatus, setMobileStatus] = useState('input')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -388,6 +389,8 @@ export function KanbanBoard() {
   }
 
   const activeSignal = activeId ? signals.find(s => s.id === activeId) : null
+  const mobileColumn = KANBAN_COLUMNS.find(col => col.status === mobileStatus) || KANBAN_COLUMNS[0]
+  const mobileSignals = filteredSignals.filter(s => s.status === mobileColumn.status)
 
   return (
     <DndContext
@@ -396,29 +399,29 @@ export function KanbanBoard() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col min-h-0">
         {/* Stats bar */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-3 mb-4">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-card comic-border comic-shadow-sm px-2 sm:px-3 py-1.5 min-w-0">
             <Zap className="w-4 h-4 text-[#FF6B35]" />
             <span className="text-sm font-bold">{activeSignals.length}</span>
-            <span className="text-xs text-muted-foreground">сигналов</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">сигналов</span>
           </div>
-          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-card comic-border comic-shadow-sm px-2 sm:px-3 py-1.5 min-w-0">
             <TrendingUp className="w-4 h-4 text-[#EF4444]" />
             <span className="text-sm font-bold text-[#EF4444]">{urgentCount}</span>
-            <span className="text-xs text-muted-foreground">срочных</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">срочных</span>
           </div>
-          <div className="flex items-center gap-2 bg-card comic-border comic-shadow-sm px-3 py-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-card comic-border comic-shadow-sm px-2 sm:px-3 py-1.5 min-w-0">
             <Clock className="w-4 h-4 text-[#00C9A7]" />
             <span className="text-sm font-bold text-[#00C9A7]">{todayCount}</span>
-            <span className="text-xs text-muted-foreground">сегодня</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">сегодня</span>
           </div>
         </div>
 
         {/* Search & Filters */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative min-w-0 flex-[1_1_220px] sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -441,13 +444,13 @@ export function KanbanBoard() {
               <span className="w-2 h-2 bg-[#FF3F8E] rounded-full" />
             )}
           </button>
-          <div className="ml-auto flex items-center rounded-lg border-2 border-[var(--comic-border-color)] bg-card p-1 comic-shadow-sm">
+          <div className="ml-auto flex items-center rounded-lg border-2 border-[var(--comic-border-color)] bg-card p-1 comic-shadow-sm max-sm:order-3 max-sm:ml-0 max-sm:w-full">
             <button
               type="button"
               onClick={() => setViewMode('board')}
               aria-label="Доска"
               className={cn(
-                "h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors",
+                "h-8 flex-1 sm:flex-none px-2.5 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
                 viewMode === 'board' ? "bg-[#FF6B35] text-white" : "text-muted-foreground hover:bg-[var(--comic-bg-hover)]"
               )}
               title="Канбан-доска"
@@ -460,7 +463,7 @@ export function KanbanBoard() {
               onClick={() => setViewMode('graph')}
               aria-label="Граф"
               className={cn(
-                "h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors",
+                "h-8 flex-1 sm:flex-none px-2.5 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
                 viewMode === 'graph' ? "bg-[#FF6B35] text-white" : "text-muted-foreground hover:bg-[var(--comic-bg-hover)]"
               )}
               title="Граф этапов"
@@ -517,11 +520,75 @@ export function KanbanBoard() {
           </div>
         )}
 
+        <div className="md:hidden mb-3">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {KANBAN_COLUMNS.map(col => {
+              const count = filteredSignals.filter(s => s.status === col.status).length
+              const isActive = mobileStatus === col.status
+              return (
+                <button
+                  key={col.status}
+                  type="button"
+                  onClick={() => setMobileStatus(col.status)}
+                  className={cn(
+                    "min-w-[132px] rounded-lg border-2 px-3 py-2 text-left transition-colors",
+                    isActive ? "border-[var(--comic-border-color)] text-white comic-shadow-sm" : "border-[var(--comic-border-color)] bg-card text-foreground"
+                  )}
+                  style={isActive ? { backgroundColor: col.color } : {}}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-xs font-bold">{col.label}</span>
+                    <span className="ml-auto rounded-full bg-white/20 px-1.5 text-[10px] font-bold">{count}</span>
+                  </div>
+                  <p className={cn("mt-0.5 truncate text-[10px]", isActive ? "text-white/80" : "text-muted-foreground")}>{col.description}</p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         {viewMode === 'graph' ? (
           <KanbanGraphView filteredSignals={filteredSignals} setSelectedSignalId={setSelectedSignalId} />
         ) : (
           /* Kanban columns */
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <>
+          <div className="md:hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="rounded-xl border-2 border-[var(--comic-border-color)] bg-[var(--comic-column-bg)]">
+              <div className="sticky top-0 z-10 rounded-t-lg border-b-2 border-[var(--comic-border-color)] px-3 py-2.5" style={{ backgroundColor: mobileColumn.color + '18' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">{mobileColumn.label}</span>
+                  <span className="ml-auto rounded-full border-2 border-[var(--comic-border-color)] px-2 text-xs font-bold" style={{ backgroundColor: mobileColumn.color, color: 'white' }}>
+                    {mobileSignals.length}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">{mobileColumn.description}</p>
+              </div>
+              <SortableContext
+                items={mobileSignals.map(s => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2 p-2">
+                  {mobileSignals.map(signal => (
+                    <SortableSignalCard
+                      key={signal.id}
+                      signal={signal}
+                      onClick={() => setSelectedSignalId(signal.id)}
+                    />
+                  ))}
+                {mobileSignals.length === 0 && (
+                  <div className="py-12 text-center">
+                    <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: mobileColumn.color + '15' }}>
+                      <span className="text-xl opacity-50">📭</span>
+                    </div>
+                    <p className="text-xs font-bold text-muted-foreground">В этой стадии пусто</p>
+                  </div>
+                )}
+                </div>
+              </SortableContext>
+            </div>
+          </div>
+
+          <div className="hidden md:block flex-1 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-3 h-full min-w-max pb-4">
               {KANBAN_COLUMNS.map((col) => {
                 const colSignals = filteredSignals.filter(s => s.status === col.status)
@@ -586,6 +653,7 @@ export function KanbanBoard() {
               })}
             </div>
           </div>
+          </>
         )}
       </div>
 

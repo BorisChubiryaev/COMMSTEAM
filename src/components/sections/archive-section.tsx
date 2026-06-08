@@ -31,7 +31,7 @@ export function ArchiveSection() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div className="flex-1 relative max-w-xs">
+        <div className="flex-1 relative min-w-[220px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
@@ -41,12 +41,12 @@ export function ArchiveSection() {
             placeholder="Поиск в архиве..."
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto pb-1 max-w-full">
           {['Все', 'Новость', 'Идея/Инициатива', 'Инфоповод', 'Задача/Поручение'].map(t => (
             <button
               key={t}
               onClick={() => setFilterType(t === 'Все' ? null : t)}
-              className={cn("text-xs px-2 py-1 rounded-lg border-2 border-[var(--comic-border-color)] font-medium transition-all", 
+              className={cn("whitespace-nowrap text-xs px-2 py-1 rounded-lg border-2 border-[var(--comic-border-color)] font-medium transition-all", 
                 (t === 'Все' ? !filterType : filterType === t) ? "text-white comic-shadow-sm" : "bg-[var(--comic-bg)] text-muted-foreground hover:bg-[var(--comic-bg-hover)]"
               )}
               style={(t === 'Все' ? !filterType : filterType === t) ? { backgroundColor: TYPE_COLORS[t] || '#9CA3AF' } : {}}
@@ -118,7 +118,7 @@ export function ArchiveSection() {
               onClick={() => setSelectedSignalId(signal.id)}
               className="bg-[var(--comic-bg)] comic-border comic-shadow-sm p-4 cursor-pointer transition-all hover:scale-[1.005] hover:comic-shadow"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     {signal.priority && (

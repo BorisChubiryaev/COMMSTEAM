@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { Plus, Search, Phone, Mail, MessageCircle, Building2, Tag, MessageSquare, Send } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Phone, Mail, MessageCircle, Building2, Tag, MessageSquare, Send } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const TAG_COLORS: Record<string, string> = {
@@ -54,7 +54,7 @@ export function ContactsSection() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -67,16 +67,19 @@ export function ContactsSection() {
         </div>
         <button
           onClick={() => setShowNew(true)}
-          className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-4 py-2 text-sm flex items-center gap-1"
+          className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-4 py-2 text-sm flex items-center gap-1 max-sm:w-full max-sm:justify-center"
         >
           <Plus className="w-4 h-4" />
           Контакт
         </button>
       </div>
 
-      <div className="flex-1 flex gap-4 overflow-hidden">
+      <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
         {/* Contact List */}
-        <div className={cn("space-y-2 overflow-y-auto custom-scrollbar pr-1", contact ? "w-1/3" : "w-full")}>
+        <div className={cn(
+          "space-y-2 overflow-y-auto custom-scrollbar pr-1",
+          contact ? "hidden md:block md:w-1/3" : "w-full"
+        )}>
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-4xl mb-2">👤</p>
@@ -149,15 +152,23 @@ export function ContactsSection() {
 
         {/* Contact Detail */}
         {contact && (
-          <div className="flex-1 bg-[var(--comic-bg)] comic-border comic-shadow p-5 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 bg-[var(--comic-bg)] comic-border comic-shadow p-4 sm:p-5 overflow-y-auto custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => setSelectedContact(null)}
+              className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground md:hidden"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              К списку контактов
+            </button>
             <div className="flex items-start gap-4 mb-5">
-              <Avatar className="w-16 h-16 border-3 border-[var(--comic-border-color)] flex-shrink-0">
+              <Avatar className="w-14 h-14 sm:w-16 sm:h-16 border-3 border-[var(--comic-border-color)] flex-shrink-0">
                 <AvatarFallback className="bg-[#00C9A7] text-white text-xl font-bold">
                   {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="comic-title text-xl text-foreground">{contact.name}</h3>
+                <h3 className="comic-title text-lg sm:text-xl text-foreground break-words">{contact.name}</h3>
                 {contact.role && <p className="text-sm text-muted-foreground">{contact.role}</p>}
                 {contact.company && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -175,9 +186,9 @@ export function ContactsSection() {
                   <div className="w-8 h-8 bg-[#3B82F6] rounded-lg flex items-center justify-center text-white flex-shrink-0">
                     <Mail className="w-4 h-4" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[9px] text-muted-foreground uppercase font-bold">Email</p>
-                    <p className="text-sm text-[#3B82F6] group-hover:underline">{contact.email}</p>
+                    <p className="text-sm text-[#3B82F6] group-hover:underline break-all">{contact.email}</p>
                   </div>
                 </a>
               )}
@@ -310,23 +321,23 @@ function NewContactModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-[var(--comic-bg)] comic-border comic-shadow-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-[var(--comic-bg)] comic-border comic-shadow-lg max-w-md w-full p-4 sm:p-6 max-h-[92dvh] sm:max-h-[80vh] overflow-y-auto custom-scrollbar rounded-b-none sm:rounded-b-xl" onClick={e => e.stopPropagation()}>
         <h2 className="comic-title text-xl text-[#FF6B35] mb-4">👤 Новый контакт</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Имя *" required />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="text" value={company} onChange={e => setCompany(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Компания" />
             <input type="text" value={role} onChange={e => setRole(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Роль" />
           </div>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="📧 Email" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="📱 Телефон" />
             <input type="text" value={telegram} onChange={e => setTelegram(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="💬 Telegram" />
           </div>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="📝 Заметки" rows={2} />
           <input type="text" value={tags} onChange={e => setTags(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="🏷️ Теги (через запятую): СМИ, Партнёр" />
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button type="submit" className="comic-btn bg-[#FF6B35] text-white px-4 py-2 text-sm">Создать</button>
             <button type="button" onClick={onClose} className="comic-btn bg-[var(--comic-tag-bg)] text-foreground px-4 py-2 text-sm">Отмена</button>
           </div>

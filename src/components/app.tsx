@@ -13,12 +13,37 @@ import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
-import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles } from 'lucide-react'
+import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/hooks/use-toast'
 
+const MOBILE_NAV_ITEMS = [
+  { id: 'kanban' as const, icon: LayoutDashboard, label: 'Канбан' },
+  { id: 'inbox' as const, icon: Inbox, label: 'Входящие' },
+  { id: 'news' as const, icon: Newspaper, label: 'Новости' },
+  { id: 'calendar' as const, icon: Calendar, label: 'Календарь' },
+  { id: 'contacts' as const, icon: Users, label: 'Контакты' },
+  { id: 'archive' as const, icon: Archive, label: 'Архив' },
+  { id: 'analytics' as const, icon: BarChart3, label: 'Аналитика' },
+  { id: 'help' as const, icon: HelpCircle, label: 'Справка' },
+]
+
+function sectionTitle(section: Section) {
+  const titles: Record<Section, string> = {
+    kanban: 'Канбан',
+    inbox: 'Входящие',
+    news: 'Новости',
+    calendar: 'Календарь',
+    contacts: 'Контакты',
+    archive: 'Архив',
+    analytics: 'Аналитика',
+    help: 'Справка',
+  }
+  return titles[section]
+}
+
 export function App() {
-  const { activeSection, setActiveSection, toggleSidebar, currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents, signals, selectedSignalId, setSelectedSignalId } = useAppStore()
+  const { activeSection, setActiveSection, toggleSidebar, currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents, signals, incomingNews, selectedSignalId, setSelectedSignalId } = useAppStore()
   const { theme, setTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [showNewSignal, setShowNewSignal] = useState(false)
@@ -179,29 +204,22 @@ export function App() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Header Bar */}
-      <header className="h-14 bg-card flex items-center px-4 gap-3 z-30 comic-shadow-sm relative overflow-hidden" style={{ borderBottom: '3px solid var(--comic-border-color)' }}>
+      <header className="h-14 bg-card flex items-center px-3 sm:px-4 gap-2 sm:gap-3 z-30 comic-shadow-sm relative overflow-hidden sticky top-0" style={{ borderBottom: '3px solid var(--comic-border-color)' }}>
         {/* Decorative speed lines in header */}
         <div className="absolute inset-0 comic-speed-lines pointer-events-none" />
 
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="lg:hidden shrink-0"
           onClick={toggleSidebar}
         >
           <Menu className="w-5 h-5" />
         </Button>
 
-        <div className="flex-1 flex items-center gap-2">
-          <h2 className="comic-title text-lg text-[#FF6B35] hidden sm:block">
-            {activeSection === 'kanban' && '📋 Канбан-доска'}
-            {activeSection === 'inbox' && '📥 Входящие новости'}
-            {activeSection === 'news' && '🗞️ Новостной поток'}
-            {activeSection === 'calendar' && '📅 Календарь'}
-            {activeSection === 'contacts' && '👥 Контакты'}
-            {activeSection === 'archive' && '📦 Архив'}
-            {activeSection === 'analytics' && '📊 Аналитика'}
-            {activeSection === 'help' && '📖 Справка и инструкции'}
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <h2 className="comic-title text-base sm:text-lg text-[#FF6B35] truncate">
+            {sectionTitle(activeSection)}
           </h2>
           {/* Comic action word decoration */}
           {activeSection === 'kanban' && signals.filter(s => s.priority === 'A').length > 0 && (
@@ -211,23 +229,24 @@ export function App() {
 
         {activeSection === 'kanban' && (
           <Button
-            className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white"
+            className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white h-9 px-2.5 sm:px-4 shrink-0"
             onClick={() => setShowNewSignal(true)}
+            title="Новый сигнал"
           >
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus className="w-4 h-4 sm:mr-1" />
             <span className="hidden sm:inline">Новый сигнал</span>
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" onClick={() => setActiveSection('help')} title="Справка" className="comic-jitter">
+        <Button variant="ghost" size="icon" onClick={() => setActiveSection('help')} title="Справка" className="comic-jitter hidden sm:inline-flex shrink-0">
           <HelpCircle className="w-5 h-5" />
         </Button>
 
-        <Button variant="ghost" size="icon" onClick={() => setShowShortcuts(true)} title="Горячие клавиши (Ctrl+/)">
+        <Button variant="ghost" size="icon" onClick={() => setShowShortcuts(true)} title="Горячие клавиши (Ctrl+/)" className="hidden md:inline-flex shrink-0">
           <Keyboard className="w-5 h-5" />
         </Button>
 
-        <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'} className="comic-wiggle">
+        <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'} className="comic-wiggle shrink-0">
           {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5" />}
         </Button>
 
@@ -241,7 +260,7 @@ export function App() {
             )}
           </Button>
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-80 bg-card comic-border comic-shadow-lg z-50 comic-pop">
+            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-80 bg-card comic-border comic-shadow-lg z-50 comic-pop">
               <div className="p-3 border-b-2 border-[var(--comic-border-color)] flex items-center justify-between">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <span className="comic-action-word text-[#FF3F8E] text-base">BOOM!</span>
@@ -278,7 +297,7 @@ export function App() {
         </div>
 
         {currentUser && (
-          <div className="flex items-center gap-2 ml-2">
+          <div className="hidden sm:flex items-center gap-2 ml-2">
             <div className="w-8 h-8 bg-[#FF6B35] rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-[var(--comic-border-color)] comic-shadow-sm">
               {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
@@ -290,13 +309,42 @@ export function App() {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-24 lg:pb-6">
           {renderSection()}
         </main>
       </div>
 
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-[var(--comic-border-color)] bg-card/95 backdrop-blur lg:hidden mobile-bottom-nav">
+        <div className="flex gap-1 overflow-x-auto px-2 py-2">
+          {MOBILE_NAV_ITEMS.map(({ id, icon: Icon, label }) => {
+            const isActive = activeSection === id
+            const badge = id === 'inbox' ? incomingNews.filter(item => item.status === 'new').length : id === 'kanban' ? signals.filter(signal => signal.status !== 'archived').length : 0
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveSection(id)}
+                className={`relative flex min-w-[72px] flex-col items-center justify-center rounded-lg border-2 px-2 py-1.5 text-[10px] font-bold transition-colors ${
+                  isActive
+                    ? 'border-[#FF6B35] bg-[#FF6B35] text-white'
+                    : 'border-transparent text-muted-foreground hover:bg-[var(--comic-bg-hover)]'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="mt-0.5 truncate">{label}</span>
+                {badge > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#FF3F8E] px-1 text-[9px] leading-4 text-white">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+
       {/* Footer */}
-      <footer className="bg-[var(--sidebar)] text-gray-400 py-3 px-6 text-center text-sm relative" style={{ borderTop: '3px solid #FF6B35' }}>
+      <footer className="hidden lg:block bg-[var(--sidebar)] text-gray-400 py-3 px-6 text-center text-sm relative" style={{ borderTop: '3px solid #FF6B35' }}>
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FF6B35] via-[#FFD166] to-[#00C9A7]" />
         <p>⚡ CommsTeam Hub — Единое пространство команды коммуникации • Оцифровка процессов с ИИ • 2025</p>
       </footer>
@@ -396,10 +444,10 @@ function NewSignalModal({ onClose, onCreated }: { onClose: () => void; onCreated
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-card comic-border comic-shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 custom-scrollbar comic-pop" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="comic-title text-2xl text-[#FF6B35]">⚡ Новый сигнал</h2>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card comic-border comic-shadow-lg w-full sm:max-w-2xl max-h-[94dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 custom-scrollbar comic-pop rounded-b-none sm:rounded-b-xl" onClick={e => e.stopPropagation()}>
+        <div className="sticky -top-4 sm:static z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 sm:py-0 bg-card flex items-center justify-between mb-4 sm:mb-6 border-b-2 sm:border-b-0 border-[var(--comic-border-color)]">
+          <h2 className="comic-title text-xl sm:text-2xl text-[#FF6B35]">⚡ Новый сигнал</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl transition-colors">✕</button>
         </div>
 
@@ -437,7 +485,7 @@ function NewSignalModal({ onClose, onCreated }: { onClose: () => void; onCreated
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold mb-1">Источник</label>
               <select
@@ -492,7 +540,7 @@ function NewSignalModal({ onClose, onCreated }: { onClose: () => void; onCreated
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button type="submit" className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-6 py-3 text-sm">
               Создать сигнал
             </button>
@@ -681,12 +729,12 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
   const currentStep = statusSteps.indexOf(signal.status)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-card comic-border comic-shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar comic-pop" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card comic-border comic-shadow-lg w-full sm:max-w-3xl max-h-[96dvh] sm:max-h-[90vh] overflow-y-auto custom-scrollbar comic-pop rounded-b-none sm:rounded-b-xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-6 border-b-2 border-[var(--comic-border-color)] sticky top-0 bg-card z-10">
-          <div className="flex items-start justify-between">
-            <div>
+        <div className="p-4 sm:p-6 border-b-2 border-[var(--comic-border-color)] sticky top-0 bg-card z-10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 {signal.priority && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded ${PRIORITY_COLORS[signal.priority as keyof typeof PRIORITY_COLORS] || 'bg-gray-200'}`}>
@@ -702,13 +750,13 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                   </span>
                 )}
               </div>
-              <h2 className="comic-title text-xl text-foreground">{signal.title}</h2>
+              <h2 className="comic-title text-lg sm:text-xl text-foreground break-words">{signal.title}</h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               <button
                 onClick={handleAnalyzeSignal}
                 disabled={analysisLoading}
-                className="comic-btn bg-[#00C9A7] hover:bg-[#00b896] text-white px-3 py-1.5 text-xs inline-flex items-center gap-1.5"
+                className="comic-btn bg-[#00C9A7] hover:bg-[#00b896] text-white px-3 py-2 sm:py-1.5 text-xs inline-flex items-center gap-1.5"
                 title="Заполнить поля рекомендацией ИИ"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -721,7 +769,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
               >
                 <Trash2 className="w-5 h-5" />
               </button>
-              <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl ml-2 transition-colors">✕</button>
+              <button onClick={onClose} className="ml-auto sm:ml-2 text-muted-foreground hover:text-foreground text-2xl transition-colors">✕</button>
             </div>
           </div>
 
@@ -737,11 +785,11 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
           )}
 
           {/* Progress bar */}
-          <div className="mt-4 flex gap-1">
+          <div className="mt-4 flex gap-1 overflow-x-auto pb-1">
             {statusSteps.map((step, i) => (
               <div
                 key={step}
-                className="flex-1 h-2 rounded-full cursor-pointer transition-all hover:opacity-80"
+                className="h-2 min-w-9 flex-1 rounded-full cursor-pointer transition-all hover:opacity-80"
                 style={{
                   backgroundColor: i <= currentStep ? STATUSES.find(s => s.value === step)?.color || '#FF6B35' : 'var(--comic-tag-bg)',
                 }}
@@ -757,7 +805,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
           {/* AI Summary */}
           {signal.aiSummary && (
             <div className="bg-[var(--comic-bg-alt)] border-2 border-[#FF6B35] rounded-lg p-4">
@@ -786,7 +834,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
           )}
 
           {/* Source & Type */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold mb-1">📡 Источник</label>
               <select
@@ -822,7 +870,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
           {currentStep >= 2 && (
             <div className="border-2 border-[#FBBF24] rounded-lg p-4 bg-yellow-50/50 dark:bg-yellow-900/10">
               <h3 className="text-sm font-bold mb-3">⚡ Фильтр / Оценка</h3>
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {[
                   { field: 'relevance', label: 'Актуальность' },
                   { field: 'alignment', label: 'Соответствие смыслам' },
@@ -830,12 +878,12 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                 ].map(({ field, label }) => (
                   <div key={field}>
                     <label className="block text-xs font-bold mb-1">{label}</label>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-5 gap-1">
                       {[1, 2, 3, 4, 5].map(v => (
                         <button
                           key={v}
                           onClick={() => handleFieldUpdate(field, v)}
-                          className={`w-8 h-8 rounded border-2 border-[var(--comic-border-color)] text-xs font-bold transition-all ${
+                          className={`h-9 rounded border-2 border-[var(--comic-border-color)] text-xs font-bold transition-all ${
                             (signal as any)[field] >= v ? 'bg-[#FF6B35] text-white' : 'bg-card text-muted-foreground'
                           }`}
                         >
@@ -846,7 +894,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold mb-1">Потенциал</label>
                   <div className="flex flex-wrap gap-1">
@@ -865,7 +913,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
                 <div>
                   <label className="block text-xs font-bold mb-1">Приоритет</label>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
                     {['A', 'B', 'C', 'Отклонено'].map(p => (
                       <button
                         key={p}
@@ -921,7 +969,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
           {currentStep >= 4 && (
             <div className="border-2 border-[#34D399] rounded-lg p-4 bg-green-50/50 dark:bg-green-900/10">
               <h3 className="text-sm font-bold mb-3">📡 Распределение по направлениям</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {['PR', 'Маркетинг', 'Внутриком'].map(d => {
                   const isActive = signal.distribution?.includes(d)
                   return (
@@ -992,7 +1040,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
           {currentStep >= 6 && (
             <div className="border-2 border-[#00C9A7] rounded-lg p-4 bg-teal-50/50 dark:bg-teal-900/10">
               <h3 className="text-sm font-bold mb-3">📊 Измерение и результат</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {[
                   { field: 'reach', label: 'Охват/Показы' },
                   { field: 'engagement', label: 'Вовлеченность' },
@@ -1087,7 +1135,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                 placeholder="Написать комментарий..."
                 onKeyDown={e => e.key === 'Enter' && handleAddComment()}
               />
-              <button onClick={handleAddComment} className="comic-btn bg-[#FF6B35] text-white px-4 py-2 text-xs">
+              <button onClick={handleAddComment} className="comic-btn bg-[#FF6B35] text-white px-4 py-2 text-xs shrink-0">
                 →
               </button>
             </div>
@@ -1114,7 +1162,7 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
             {signal.status !== 'archived' && (
               <button
                 onClick={() => handleStatusChange('archived')}
-                className="comic-btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm ml-auto"
+                className="comic-btn bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 text-sm sm:ml-auto"
               >
                 📦 В архив
               </button>

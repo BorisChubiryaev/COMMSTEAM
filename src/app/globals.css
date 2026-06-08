@@ -152,9 +152,13 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
+body {
     @apply bg-background text-foreground;
     background-image: none;
+  }
+  html, body {
+    min-height: 100%;
+    overscroll-behavior-y: none;
   }
 }
 
@@ -771,4 +775,62 @@ input:focus, select:focus, textarea:focus {
 .markdown-content pre code {
   background: transparent;
   padding: 0;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --radius: 0.625rem;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  .comic-border {
+    border-width: 2px;
+    border-radius: 0.625rem;
+  }
+
+  .comic-shadow,
+  .comic-shadow-lg,
+  .comic-btn {
+    box-shadow: 2px 2px 0px 0px var(--comic-shadow-color);
+  }
+
+  .comic-btn:hover,
+  .comic-btn:active {
+    transform: none;
+    box-shadow: 2px 2px 0px 0px var(--comic-shadow-color);
+  }
+
+  .comic-card-hover:hover {
+    transform: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .kanban-column {
+    min-height: 320px;
+  }
 }

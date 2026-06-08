@@ -711,15 +711,15 @@ AI_MODEL="google/gemini-2.5-flash"
   }
 
   return (
-    <div className="h-full flex gap-4 overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row gap-4 overflow-hidden">
       {/* Sidebar navigation */}
-      <div className="w-48 flex-shrink-0 space-y-1 overflow-y-auto custom-scrollbar">
+      <div className="md:w-48 flex-shrink-0 flex md:block gap-2 md:space-y-1 overflow-x-auto md:overflow-y-auto custom-scrollbar pb-1 md:pb-0">
         {SECTIONS.map(({ id, label, icon: Icon, color }) => (
           <button
             key={id}
             onClick={() => setActiveSection(id)}
             className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-all",
+              "min-w-max md:w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-all",
               activeSection === id
                 ? "text-white border-2 border-[var(--comic-border-color)]"
                 : "text-muted-foreground hover:bg-[var(--comic-bg-hover)] border-2 border-transparent"
@@ -737,7 +737,7 @@ AI_MODEL="google/gemini-2.5-flash"
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+      <div className="flex-1 overflow-y-auto custom-scrollbar md:pr-2 min-h-0">
         {renderContent()}
       </div>
     </div>

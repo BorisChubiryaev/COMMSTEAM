@@ -39,12 +39,12 @@ export function CalendarSection() {
     .slice(0, 5)
 
   return (
-    <div className="h-full flex flex-col lg:flex-row gap-4">
+    <div className="h-full flex flex-col lg:flex-row gap-4 min-h-0 overflow-y-auto lg:overflow-hidden custom-scrollbar">
       {/* Main Calendar */}
       <div className="flex-1 flex flex-col">
         {/* Calendar Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="comic-title text-2xl text-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="comic-title text-xl sm:text-2xl text-foreground">
             📅 {format(currentDate, 'LLLL yyyy', { locale: ru })}
           </h2>
           <div className="flex gap-2">
@@ -70,7 +70,7 @@ export function CalendarSection() {
         </div>
 
         {/* Calendar Grid */}
-        <div className="flex-1 bg-[var(--comic-bg)] comic-border comic-shadow rounded-xl overflow-hidden">
+        <div className="flex-1 bg-[var(--comic-bg)] comic-border comic-shadow rounded-xl overflow-hidden min-h-[430px]">
           {/* Week days header */}
           <div className="grid grid-cols-7 border-b-2 border-[var(--comic-border-color)]">
             {weekDays.map(day => (
@@ -93,14 +93,14 @@ export function CalendarSection() {
                   key={i}
                   onClick={() => setSelectedDate(day)}
                   className={cn(
-                    "min-h-[70px] p-1.5 border border-[var(--comic-border-color)]/20 cursor-pointer transition-all hover:bg-[var(--comic-bg-hover)]",
+                    "min-h-[54px] sm:min-h-[70px] p-1 sm:p-1.5 border border-[var(--comic-border-color)]/20 cursor-pointer transition-all hover:bg-[var(--comic-bg-hover)]",
                     !isCurrentMonth && "bg-[var(--comic-bg-hover)]/50 opacity-40",
                     isSelected && "bg-[#FF6B35]/5 ring-2 ring-[#FF6B35] ring-inset",
                     today && "bg-[#FF6B35]/5"
                   )}
                 >
                   <div className={cn(
-                    "text-[11px] font-bold mb-1 w-6 h-6 flex items-center justify-center rounded-full",
+                    "text-[10px] sm:text-[11px] font-bold mb-1 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full",
                     today && "bg-[#FF6B35] text-white",
                     !today && isCurrentMonth && "text-foreground",
                     !today && !isCurrentMonth && "text-muted-foreground"
@@ -108,20 +108,28 @@ export function CalendarSection() {
                     {format(day, 'd')}
                   </div>
                   <div className="space-y-0.5">
-                    {dayEvents.slice(0, 2).map(event => {
+                    {dayEvents.slice(0, 1).map(event => {
                       const colors = EVENT_COLORS[event.type || ''] || EVENT_COLORS['Встреча']
                       return (
                         <div
                           key={event.id}
-                          className="text-[8px] px-1 py-0.5 rounded truncate text-white font-medium"
+                          className="hidden sm:block text-[8px] px-1 py-0.5 rounded truncate text-white font-medium"
                           style={{ backgroundColor: colors.bg }}
                         >
                           {event.title}
                         </div>
                       )
                     })}
-                    {dayEvents.length > 2 && (
-                      <div className="text-[8px] text-muted-foreground pl-1 font-bold">+{dayEvents.length - 2}</div>
+                    {dayEvents.length > 0 && (
+                      <div className="sm:hidden flex gap-0.5 pl-0.5">
+                        {dayEvents.slice(0, 3).map(event => {
+                          const colors = EVENT_COLORS[event.type || ''] || EVENT_COLORS['Встреча']
+                          return <span key={event.id} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.dot }} />
+                        })}
+                      </div>
+                    )}
+                    {dayEvents.length > 1 && (
+                      <div className="hidden sm:block text-[8px] text-muted-foreground pl-1 font-bold">+{dayEvents.length - 1}</div>
                     )}
                   </div>
                 </div>
@@ -147,7 +155,7 @@ export function CalendarSection() {
                 {getEventsForDate(selectedDate).map(event => {
                   const colors = EVENT_COLORS[event.type || ''] || EVENT_COLORS['Встреча']
                   return (
-                    <div key={event.id} className="bg-[var(--comic-bg)] comic-border comic-shadow-sm p-3 flex items-start gap-3">
+                    <div key={event.id} className="bg-[var(--comic-bg)] comic-border comic-shadow-sm p-3 flex flex-col sm:flex-row sm:items-start gap-3">
                       <div className="w-1 h-full min-h-[40px] rounded-full flex-shrink-0" style={{ backgroundColor: colors.dot }} />
                       <div className="flex-1">
                         <p className="text-sm font-bold">{event.title}</p>
@@ -163,7 +171,7 @@ export function CalendarSection() {
                           </span>
                         </div>
                       </div>
-                      <span className={cn("text-[10px] px-2 py-0.5 rounded-full border font-medium",
+                      <span className={cn("self-start text-[10px] px-2 py-0.5 rounded-full border font-medium",
                         event.status === 'planned' && "bg-yellow-50 text-yellow-700 border-yellow-200",
                         event.status === 'confirmed' && "bg-green-50 text-green-700 border-green-200",
                         event.status === 'completed' && "bg-[var(--comic-bg-hover)] text-muted-foreground border-[var(--comic-border-color)]/30",
@@ -262,13 +270,13 @@ function NewEventModal({ onClose, defaultDate }: { onClose: () => void; defaultD
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-[var(--comic-bg)] comic-border comic-shadow-lg max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-[var(--comic-bg)] comic-border comic-shadow-lg max-w-md w-full p-4 sm:p-6 max-h-[92dvh] overflow-y-auto custom-scrollbar rounded-b-none sm:rounded-b-xl" onClick={e => e.stopPropagation()}>
         <h2 className="comic-title text-xl text-[#FF6B35] mb-4">📅 Новое событие</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Название события *" required />
           <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Описание" rows={2} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-bold block mb-1">Дата</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" />
@@ -297,7 +305,7 @@ function NewEventModal({ onClose, defaultDate }: { onClose: () => void; defaultD
               ))}
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button type="submit" className="comic-btn bg-[#FF6B35] text-white px-4 py-2 text-sm">Создать</button>
             <button type="button" onClick={onClose} className="comic-btn bg-[var(--comic-tag-bg)] text-foreground px-4 py-2 text-sm">Отмена</button>
           </div>
