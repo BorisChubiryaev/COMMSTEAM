@@ -74,9 +74,36 @@ model Signal {
   assigneeId       String?
   assignee         TeamMember?   @relation("SignalAssignee", fields: [assigneeId], references: [id])
   comments         Comment[]
+  incomingNews     IncomingNews[]
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+}
+
+model IncomingNews {
+  id                String   @id @default(cuid())
+  title             String
+  content           String?
+  link              String?
+  source            String   @default("manual") // telegram, manual, parser, rss
+  status            String   @default("new") // new, converted, duplicate, ignored
+  rawPayload        String?
+
+  telegramChatId    String?
+  telegramMessageId String?
+  telegramUsername  String?
+  telegramFirstName String?
+  telegramLastName  String?
+
+  signalId          String?
+  signal            Signal?  @relation(fields: [signalId], references: [id])
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([source, telegramChatId, telegramMessageId])
+  @@index([status, createdAt])
+  @@index([link])
 }
 
 model Contact {

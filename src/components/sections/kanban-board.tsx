@@ -1,10 +1,10 @@
 'use client'
 
-import { useAppStore, STATUS_LABELS, PRIORITY_COLORS, PRIORITY_BG } from '@/lib/store'
+import { useAppStore, PRIORITY_COLORS, PRIORITY_BG, type Signal } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
-import { Plus, Filter, Search, TrendingUp, Clock, Zap, GripVertical } from 'lucide-react'
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
+import { Columns3, Filter, GitBranch, Search, TrendingUp, Clock, Zap, GripVertical } from 'lucide-react'
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -19,6 +19,18 @@ const KANBAN_COLUMNS = [
   { status: 'feedback', label: '💬 Обратная связь', color: '#FF3F8E', description: 'Уроки' },
   { status: 'completed', label: '✅ Завершено', color: '#4ECB71', description: 'Готово' },
 ]
+
+const GRAPH_LAYOUT: Record<string, { x: number; y: number }> = {
+  input: { x: 13, y: 14 },
+  classification: { x: 36, y: 14 },
+  evaluation: { x: 59, y: 14 },
+  meaning: { x: 82, y: 14 },
+  distribution: { x: 82, y: 50 },
+  launch: { x: 59, y: 50 },
+  measurement: { x: 36, y: 50 },
+  feedback: { x: 13, y: 50 },
+  completed: { x: 43, y: 84 },
+}
 
 const SOURCE_EMOJIS: Record<string, string> = {
   'ДЗО': '🏢',
@@ -174,6 +186,134 @@ function DragOverlayCard({ signal }: { signal: any }) {
   )
 }
 
+function GraphSignalPill({ signal, onClick }: { signal: Signal; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left bg-card border border-[var(--comic-border-color)] rounded-md px-2 py-1.5 hover:border-[#FF6B35] hover:bg-[var(--comic-bg-hover)] transition-colors"
+    >
+      <div className="flex items-start gap-1.5">
+        <span
+          className="mt-1 h-2 w-2 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: PRIORITY_BG[signal.priority as keyof typeof PRIORITY_BG] || '#9CA3AF' }}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-bold leading-snug line-clamp-2">{signal.title}</span>
+          <span className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground">
+            {signal.signalType && <span className="truncate">{signal.signalType}</span>}
+            {signal.source && (
+              <>
+                <span aria-hidden="true">/</span>
+                <span className="truncate">{signal.source}</span>
+              </>
+            )}
+          </span>
+        </span>
+      </div>
+    </button>
+  )
+}
+
+function KanbanGraphView({
+  filteredSignals,
+  setSelectedSignalId,
+}: {
+  filteredSignals: Signal[]
+  setSelectedSignalId: (id: string | null) => void
+}) {
+  const graphNodes = KANBAN_COLUMNS.map((col) => ({
+    ...col,
+    position: GRAPH_LAYOUT[col.status],
+    signals: filteredSignals.filter((signal) => signal.status === col.status),
+  }))
+
+  return (
+    <div className="flex-1 overflow-auto">
+      <div className="relative min-h-[640px] min-w-[1040px] rounded-xl border-2 border-[var(--comic-border-color)] bg-[var(--comic-column-bg)] overflow-hidden">
+        <div className="absolute inset-0 benday-dots opacity-[0.22]" />
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {graphNodes.slice(0, -1).map((node, index) => {
+            const next = graphNodes[index + 1]
+            const bend = Math.abs(node.position.y - next.position.y) > 1
+            const d = bend
+              ? `M ${node.position.x} ${node.position.y} C ${(node.position.x + next.position.x) / 2} ${node.position.y}, ${(node.position.x + next.position.x) / 2} ${next.position.y}, ${next.position.x} ${next.position.y}`
+              : `M ${node.position.x} ${node.position.y} L ${next.position.x} ${next.position.y}`
+
+            return (
+              <path
+                key={`${node.status}-${next.status}`}
+                d={d}
+                fill="none"
+                stroke={next.color}
+                strokeWidth="0.35"
+                strokeLinecap="round"
+                strokeDasharray={next.signals.length === 0 ? '1 1.2' : undefined}
+                opacity={next.signals.length === 0 ? 0.35 : 0.75}
+                vectorEffect="non-scaling-stroke"
+              />
+            )
+          })}
+        </svg>
+
+        {graphNodes.map((node) => {
+          const visibleSignals = node.signals.slice(0, 3)
+          const hiddenCount = node.signals.length - visibleSignals.length
+
+          return (
+            <div
+              key={node.status}
+              className="absolute w-[220px] -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${node.position.x}%`, top: `${node.position.y}%` }}
+            >
+              <div className="bg-card border-2 border-[var(--comic-border-color)] rounded-lg comic-shadow-sm overflow-hidden">
+                <div className="relative px-3 py-2" style={{ backgroundColor: node.color + '18' }}>
+                  <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: node.color }} />
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="min-w-0 flex-1 truncate text-xs font-bold">{node.label}</span>
+                    <span
+                      className="h-6 min-w-6 rounded-full border-2 border-[var(--comic-border-color)] px-1.5 text-center text-xs font-bold leading-5"
+                      style={{
+                        backgroundColor: node.signals.length > 0 ? node.color : 'var(--comic-tag-bg)',
+                        color: node.signals.length > 0 ? 'white' : 'var(--comic-text-muted)',
+                      }}
+                    >
+                      {node.signals.length}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{node.description}</p>
+                </div>
+
+                <div className="space-y-1.5 p-2">
+                  {visibleSignals.map((signal) => (
+                    <GraphSignalPill
+                      key={signal.id}
+                      signal={signal}
+                      onClick={() => setSelectedSignalId(signal.id)}
+                    />
+                  ))}
+
+                  {node.signals.length === 0 && (
+                    <div className="rounded-md border border-dashed border-[var(--comic-border-color)] px-2 py-3 text-center text-[10px] font-medium text-muted-foreground/60">
+                      Пусто
+                    </div>
+                  )}
+
+                  {hiddenCount > 0 && (
+                    <div className="text-center text-[10px] font-bold text-muted-foreground">
+                      +{hiddenCount} еще
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function KanbanBoard() {
   const { signals, setSelectedSignalId, updateSignal, setSignals } = useAppStore()
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
@@ -181,6 +321,7 @@ export function KanbanBoard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'board' | 'graph'>('board')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -300,6 +441,34 @@ export function KanbanBoard() {
               <span className="w-2 h-2 bg-[#FF3F8E] rounded-full" />
             )}
           </button>
+          <div className="ml-auto flex items-center rounded-lg border-2 border-[var(--comic-border-color)] bg-card p-1 comic-shadow-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode('board')}
+              aria-label="Доска"
+              className={cn(
+                "h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors",
+                viewMode === 'board' ? "bg-[#FF6B35] text-white" : "text-muted-foreground hover:bg-[var(--comic-bg-hover)]"
+              )}
+              title="Канбан-доска"
+            >
+              <Columns3 className="w-3.5 h-3.5" />
+              Доска
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('graph')}
+              aria-label="Граф"
+              className={cn(
+                "h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors",
+                viewMode === 'graph' ? "bg-[#FF6B35] text-white" : "text-muted-foreground hover:bg-[var(--comic-bg-hover)]"
+              )}
+              title="Граф этапов"
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Граф
+            </button>
+          </div>
         </div>
 
         {/* Expandable Filters */}
@@ -348,72 +517,76 @@ export function KanbanBoard() {
           </div>
         )}
 
-        {/* Kanban columns */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-3 h-full min-w-max pb-4">
-            {KANBAN_COLUMNS.map((col) => {
-              const colSignals = filteredSignals.filter(s => s.status === col.status)
-              return (
-                <div
-                  key={col.status}
-                  className="w-[280px] flex-shrink-0 flex flex-col"
-                  data-status={col.status}
-                >
-                  {/* Column header */}
+        {viewMode === 'graph' ? (
+          <KanbanGraphView filteredSignals={filteredSignals} setSelectedSignalId={setSelectedSignalId} />
+        ) : (
+          /* Kanban columns */
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-3 h-full min-w-max pb-4">
+              {KANBAN_COLUMNS.map((col) => {
+                const colSignals = filteredSignals.filter(s => s.status === col.status)
+                return (
                   <div
-                    className="px-3 py-2.5 rounded-t-xl border-2 border-b-0 border-[var(--comic-border-color)] relative overflow-hidden"
-                    style={{ backgroundColor: col.color + '15' }}
+                    key={col.status}
+                    className="w-[280px] flex-shrink-0 flex flex-col"
+                    data-status={col.status}
                   >
-                    {/* Decorative stripe */}
-                    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: col.color }} />
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">{col.label}</span>
-                      <span
-                        className="ml-auto text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[var(--comic-border-color)]"
-                        style={{ backgroundColor: colSignals.length > 0 ? col.color : 'var(--comic-tag-bg)', color: colSignals.length > 0 ? 'white' : 'var(--comic-text-muted)' }}
-                      >
-                        {colSignals.length}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{col.description}</p>
-                  </div>
-
-                  {/* Column body - droppable area */}
-                  <SortableContext
-                    items={colSignals.map(s => s.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
+                    {/* Column header */}
                     <div
-                      className="flex-1 bg-[var(--comic-column-bg)] border-2 border-t-0 border-[var(--comic-border-color)] rounded-b-xl p-2 space-y-2 overflow-y-auto custom-scrollbar kanban-column"
-                      style={{ borderLeftColor: col.color + '40' }}
-                      data-status={col.status}
+                      className="px-3 py-2.5 rounded-t-xl border-2 border-b-0 border-[var(--comic-border-color)] relative overflow-hidden"
+                      style={{ backgroundColor: col.color + '15' }}
                     >
-                      {colSignals.map(signal => (
-                        <SortableSignalCard
-                          key={signal.id}
-                          signal={signal}
-                          onClick={() => setSelectedSignalId(signal.id)}
-                        />
-                      ))}
-
-                      {colSignals.length === 0 && (
-                        <div className="text-center py-8">
-                          <div className="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center" style={{ backgroundColor: col.color + '15' }}>
-                            <span className="text-xl opacity-40">
-                              {col.status === 'input' ? '📭' : col.status === 'completed' ? '🎯' : '✨'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground/50 font-medium">Пусто</p>
-                          <p className="text-[9px] text-muted-foreground/30 mt-0.5">{col.description}</p>
-                        </div>
-                      )}
+                      {/* Decorative stripe */}
+                      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: col.color }} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold">{col.label}</span>
+                        <span
+                          className="ml-auto text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[var(--comic-border-color)]"
+                          style={{ backgroundColor: colSignals.length > 0 ? col.color : 'var(--comic-tag-bg)', color: colSignals.length > 0 ? 'white' : 'var(--comic-text-muted)' }}
+                        >
+                          {colSignals.length}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{col.description}</p>
                     </div>
-                  </SortableContext>
-                </div>
-              )
-            })}
+
+                    {/* Column body - droppable area */}
+                    <SortableContext
+                      items={colSignals.map(s => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div
+                        className="flex-1 bg-[var(--comic-column-bg)] border-2 border-t-0 border-[var(--comic-border-color)] rounded-b-xl p-2 space-y-2 overflow-y-auto custom-scrollbar kanban-column"
+                        style={{ borderLeftColor: col.color + '40' }}
+                        data-status={col.status}
+                      >
+                        {colSignals.map(signal => (
+                          <SortableSignalCard
+                            key={signal.id}
+                            signal={signal}
+                            onClick={() => setSelectedSignalId(signal.id)}
+                          />
+                        ))}
+
+                        {colSignals.length === 0 && (
+                          <div className="text-center py-8">
+                            <div className="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center" style={{ backgroundColor: col.color + '15' }}>
+                              <span className="text-xl opacity-40">
+                                {col.status === 'input' ? '📭' : col.status === 'completed' ? '🎯' : '✨'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground/50 font-medium">Пусто</p>
+                            <p className="text-[9px] text-muted-foreground/30 mt-0.5">{col.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    </SortableContext>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Drag overlay - shows the card being dragged */}

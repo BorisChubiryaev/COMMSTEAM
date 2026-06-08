@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore, STATUS_LABELS, STATUSES, PRIORITY_COLORS, PRIORITY_BG, type Section } from '@/lib/store'
 import { Sidebar } from '@/components/sidebar'
 import { KanbanBoard } from '@/components/sections/kanban-board'
+import { IncomingNewsSection } from '@/components/sections/incoming-news-section'
 import { NewsFeedSection } from '@/components/sections/news-feed-section'
 import { CalendarSection } from '@/components/sections/calendar-section'
 import { ContactsSection } from '@/components/sections/contacts-section'
@@ -17,7 +18,7 @@ import { useTheme } from 'next-themes'
 import { toast } from '@/hooks/use-toast'
 
 export function App() {
-  const { activeSection, setActiveSection, toggleSidebar, currentUser, setCurrentUser, setTeamMembers, setSignals, setContacts, setEvents, signals, selectedSignalId, setSelectedSignalId } = useAppStore()
+  const { activeSection, setActiveSection, toggleSidebar, currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents, signals, selectedSignalId, setSelectedSignalId } = useAppStore()
   const { theme, setTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [showNewSignal, setShowNewSignal] = useState(false)
@@ -58,9 +59,9 @@ export function App() {
           searchInput?.focus()
         }, 100)
       }
-      // Ctrl+1-7: Navigate sections
+      // Ctrl+1-8: Navigate sections
       if (e.ctrlKey || e.metaKey) {
-        const sections: Section[] = ['kanban', 'news', 'calendar', 'contacts', 'archive', 'analytics', 'help']
+        const sections: Section[] = ['kanban', 'inbox', 'news', 'calendar', 'contacts', 'archive', 'analytics', 'help']
         const num = parseInt(e.key)
         if (num >= 1 && num <= sections.length) {
           e.preventDefault()
@@ -86,9 +87,10 @@ export function App() {
   // Load initial data
   const loadData = useCallback(async () => {
     try {
-      const [teamRes, signalsRes, contactsRes, eventsRes] = await Promise.all([
+      const [teamRes, signalsRes, incomingNewsRes, contactsRes, eventsRes] = await Promise.all([
         fetch('/api/team'),
         fetch('/api/signals'),
+        fetch('/api/incoming-news'),
         fetch('/api/contacts'),
         fetch('/api/events'),
       ])
@@ -106,6 +108,11 @@ export function App() {
         setSignals(data)
       }
 
+      if (incomingNewsRes.ok) {
+        const data = await incomingNewsRes.json()
+        setIncomingNews(data)
+      }
+
       if (contactsRes.ok) {
         const data = await contactsRes.json()
         setContacts(data)
@@ -120,7 +127,7 @@ export function App() {
     } finally {
       setLoading(false)
     }
-  }, [currentUser, setCurrentUser, setTeamMembers, setSignals, setContacts, setEvents])
+  }, [currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents])
 
   useEffect(() => {
     // Seed first, then load
@@ -134,6 +141,7 @@ export function App() {
   const renderSection = () => {
     switch (activeSection) {
       case 'kanban': return <KanbanBoard />
+      case 'inbox': return <IncomingNewsSection />
       case 'news': return <NewsFeedSection />
       case 'calendar': return <CalendarSection />
       case 'contacts': return <ContactsSection />
@@ -187,6 +195,7 @@ export function App() {
         <div className="flex-1 flex items-center gap-2">
           <h2 className="comic-title text-lg text-[#FF6B35] hidden sm:block">
             {activeSection === 'kanban' && '📋 Канбан-доска'}
+            {activeSection === 'inbox' && '📥 Входящие новости'}
             {activeSection === 'news' && '🗞️ Новостной поток'}
             {activeSection === 'calendar' && '📅 Календарь'}
             {activeSection === 'contacts' && '👥 Контакты'}

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Section = 'kanban' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'help'
+export type Section = 'kanban' | 'inbox' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'help'
 
 export interface TeamMember {
   id: string
@@ -41,6 +41,25 @@ export interface Signal {
   assigneeId: string | null
   assignee: TeamMember | null
   comments: Comment[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface IncomingNews {
+  id: string
+  title: string
+  content: string | null
+  link: string | null
+  source: string
+  status: string
+  rawPayload: string | null
+  telegramChatId: string | null
+  telegramMessageId: string | null
+  telegramUsername: string | null
+  telegramFirstName: string | null
+  telegramLastName: string | null
+  signalId: string | null
+  signal: Signal | null
   createdAt: string
   updatedAt: string
 }
@@ -116,6 +135,10 @@ interface AppState {
   signals: Signal[]
   setSignals: (signals: Signal[]) => void
   updateSignal: (signal: Signal) => void
+
+  incomingNews: IncomingNews[]
+  setIncomingNews: (items: IncomingNews[]) => void
+  updateIncomingNews: (item: IncomingNews) => void
   
   contacts: Contact[]
   setContacts: (contacts: Contact[]) => void
@@ -145,6 +168,12 @@ export const useAppStore = create<AppState>((set) => ({
   setSignals: (signals) => set({ signals: signals }),
   updateSignal: (signal) => set((state) => ({
     signals: state.signals.map(s => s.id === signal.id ? signal : s)
+  })),
+
+  incomingNews: [],
+  setIncomingNews: (items) => set({ incomingNews: items }),
+  updateIncomingNews: (item) => set((state) => ({
+    incomingNews: state.incomingNews.map(existing => existing.id === item.id ? item : existing)
   })),
   
   contacts: [],

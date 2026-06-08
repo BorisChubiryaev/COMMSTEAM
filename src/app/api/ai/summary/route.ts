@@ -24,7 +24,17 @@ export async function POST(req: Request) {
         ].filter(Boolean).join('\n\n')
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Не удалось открыть ссылку'
-        return Response.json({ error: message }, { status: 422 })
+        if (text) {
+          sourceText = [
+            `Ссылка не была прочитана автоматически: ${link}`,
+            `Причина: ${message}`,
+            `Текст пользователя:\n${text}`,
+          ].join('\n\n')
+        } else {
+          return Response.json({
+            error: `${message}. Добавьте текст новости в поле “Содержание” или попробуйте другую ссылку.`,
+          }, { status: 422 })
+        }
       }
     }
 

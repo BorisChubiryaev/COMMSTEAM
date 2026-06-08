@@ -8,6 +8,7 @@ import {
   Users,
   Archive,
   BarChart3,
+  Inbox,
   Newspaper,
   Menu,
   X,
@@ -20,6 +21,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const navItems = [
   { id: 'kanban' as const, icon: LayoutDashboard, label: 'Канбан', emoji: '📋', color: '#FF6B35' },
+  { id: 'inbox' as const, icon: Inbox, label: 'Входящие', emoji: '📥', color: '#FFD166' },
   { id: 'news' as const, icon: Newspaper, label: 'Новости', emoji: '🗞️', color: '#00C9A7' },
   { id: 'calendar' as const, icon: Calendar, label: 'Календарь', emoji: '📅', color: '#00C9A7' },
   { id: 'contacts' as const, icon: Users, label: 'Контакты', emoji: '👥', color: '#A78BFA' },
@@ -29,9 +31,9 @@ const navItems = [
 ]
 
 export function Sidebar() {
-  const { activeSection, setActiveSection, sidebarOpen, setSidebarOpen, teamMembers, currentUser, signals } = useAppStore()
+  const { activeSection, setActiveSection, sidebarOpen, setSidebarOpen, teamMembers, currentUser, signals, incomingNews } = useAppStore()
 
-  const inputCount = signals.filter(s => s.status === 'input').length
+  const incomingCount = incomingNews.filter(item => item.status === 'new').length
   const urgentCount = signals.filter(s => s.priority === 'A' && s.status !== 'archived' && s.status !== 'completed').length
 
   return (
@@ -90,8 +92,8 @@ export function Sidebar() {
               <p className="text-[9px] text-gray-400">Срочных</p>
             </div>
             <div className="flex-1 bg-white/5 rounded-lg p-2 text-center border border-white/10">
-              <p className="text-lg font-bold text-[#FBBF24]">{inputCount}</p>
-              <p className="text-[9px] text-gray-400">Входящих</p>
+              <p className="text-lg font-bold text-[#FBBF24]">{incomingCount}</p>
+              <p className="text-[9px] text-gray-400">Новостей</p>
             </div>
           </div>
         </div>
@@ -127,6 +129,14 @@ export function Sidebar() {
                     isActive ? "bg-white/20" : "bg-white/10"
                   )}>
                     {signals.length}
+                  </span>
+                )}
+                {item.id === 'inbox' && incomingCount > 0 && (
+                  <span className={cn(
+                    "ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                    isActive ? "bg-white/20" : "bg-white/10"
+                  )}>
+                    {incomingCount}
                   </span>
                 )}
                 {isActive && (

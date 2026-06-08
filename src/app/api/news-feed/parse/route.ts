@@ -146,6 +146,15 @@ async function parseSource(rawSourceUrl: string): Promise<SourceResult> {
     }
 
     const candidates = extractCandidateLinks(html, sourceUrl)
+    if (candidates.length === 0) {
+      return {
+        sourceUrl: sourceUrl.toString(),
+        sourceName,
+        items: [],
+        error: 'На странице не найден обычный HTML-список новостей. Вероятно, источник загружает ленту через JavaScript или закрытый API.',
+      }
+    }
+
     const items: NewsItem[] = []
 
     for (const candidate of candidates) {

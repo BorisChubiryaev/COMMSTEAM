@@ -117,6 +117,10 @@ export async function extractArticleFromUrl(rawUrl: string): Promise<ExtractedAr
   })
 
   if (!response.ok) {
+    const errorBody = await response.text().catch(() => '')
+    if (/__qrator|qauth|qrator/i.test(errorBody)) {
+      throw new Error('Сайт заблокировал автоматическое чтение страницы через anti-bot защиту')
+    }
     throw new Error(`Сайт вернул HTTP ${response.status}`)
   }
 
