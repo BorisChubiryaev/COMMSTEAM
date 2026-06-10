@@ -8,6 +8,8 @@ export async function GET(req: Request) {
     where: status ? { status } : undefined,
     include: {
       assignee: true,
+      collaborators: true,
+      contacts: true,
       calendarEvent: true,
       comments: {
         include: { author: true },
@@ -33,9 +35,13 @@ export async function POST(req: Request) {
       launchLocation: body.launchLocation || null,
       status: body.status || 'input',
       assigneeId: body.assigneeId || null,
+      contacts: Array.isArray(body.contactIds) ? { connect: body.contactIds.map((id: string) => ({ id })) } : undefined,
+      collaborators: Array.isArray(body.collaboratorIds) ? { connect: body.collaboratorIds.map((id: string) => ({ id })) } : undefined,
     },
     include: {
       assignee: true,
+      collaborators: true,
+      contacts: true,
       calendarEvent: true,
       comments: { include: { author: true } },
     },

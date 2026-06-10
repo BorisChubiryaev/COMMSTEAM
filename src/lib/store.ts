@@ -44,6 +44,8 @@ export interface Signal {
   meaningMapUpdate: string | null
   assigneeId: string | null
   assignee: TeamMember | null
+  collaborators: TeamMember[]
+  contacts: Contact[]
   comments: Comment[]
   decisionHistory?: DecisionHistory[]
   createdAt: string
@@ -124,6 +126,7 @@ export interface Event {
   status: string
   organizerId: string | null
   organizer: TeamMember | null
+  contacts: Contact[]
   createdAt: string
   updatedAt: string
 }

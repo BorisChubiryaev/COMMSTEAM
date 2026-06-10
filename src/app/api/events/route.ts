@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 
 export async function GET() {
   const events = await db.event.findMany({
-    include: { organizer: true },
+    include: { organizer: true, contacts: true },
     orderBy: { date: 'asc' },
   })
   return Response.json(events)
@@ -20,8 +20,9 @@ export async function POST(req: Request) {
       type: body.type || null,
       status: body.status || 'planned',
       organizerId: body.organizerId || null,
+      contacts: Array.isArray(body.contactIds) ? { connect: body.contactIds.map((id: string) => ({ id })) } : undefined,
     },
-    include: { organizer: true },
+    include: { organizer: true, contacts: true },
   })
   return Response.json(event)
 }

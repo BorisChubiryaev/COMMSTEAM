@@ -16,10 +16,11 @@ const EVENT_COLORS: Record<string, { bg: string; border: string; dot: string }> 
 }
 
 export function CalendarSection() {
-  const { events, setEvents, teamMembers } = useAppStore()
+  const { events, setEvents, contacts } = useAppStore()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showNewEvent, setShowNewEvent] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [contactDrafts, setContactDrafts] = useState<Record<string, string>>({})
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -37,6 +38,23 @@ export function CalendarSection() {
     .filter(e => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5)
+
+  const updateEventContacts = async (eventId: string, contactIds: string[]) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactIds }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setEvents(events.map(event => event.id === updated.id ? updated : event))
+        setContactDrafts(drafts => ({ ...drafts, [eventId]: '' }))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   return (
     <div className="h-full flex flex-col lg:flex-row gap-4 min-h-0 overflow-y-auto lg:overflow-hidden custom-scrollbar">
@@ -169,6 +187,53 @@ export function CalendarSection() {
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" />{format(new Date(event.date), 'HH:mm')}
                           </span>
+                        </div>
+                        <div className="mt-3 rounded-lg border border-[var(--comic-border-color)]/20 bg-[var(--comic-bg-hover)]/50 p-2">
+                          <div className="mb-1.5 flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
+                            <UsersIcon className="h-3 w-3" />
+                            Участники и упоминания
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(event.contacts || []).length === 0 ? (
+                              <span className="text-[10px] text-muted-foreground italic">Пока не связаны контакты</span>
+                            ) : (
+                              (event.contacts || []).map(contact => (
+                                <button
+                                  key={contact.id}
+                                  type="button"
+                                  onClick={() => updateEventContacts(event.id, (event.contacts || []).filter(item => item.id !== contact.id).map(item => item.id))}
+                                  className="rounded-full border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-2 py-0.5 text-[10px] font-medium text-[#3B82F6] hover:bg-[#3B82F6]/20"
+                                  title="Убрать связь"
+                                >
+                                  {contact.name} ×
+                                </button>
+                              ))
+                            )}
+                          </div>
+                          <div className="mt-2 flex gap-1.5">
+                            <select
+                              value={contactDrafts[event.id] || ''}
+                              onChange={e => setContactDrafts(drafts => ({ ...drafts, [event.id]: e.target.value }))}
+                              className="min-w-0 flex-1 rounded-md border border-[var(--comic-border-color)] bg-[var(--comic-input-bg)] px-2 py-1 text-xs"
+                            >
+                              <option value="">Добавить контакт...</option>
+                              {contacts
+                                .filter(contact => !(event.contacts || []).some(linked => linked.id === contact.id))
+                                .map(contact => (
+                                  <option key={contact.id} value={contact.id}>
+                                    {contact.name}{contact.company ? ` · ${contact.company}` : ''}
+                                  </option>
+                                ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={!contactDrafts[event.id]}
+                              onClick={() => updateEventContacts(event.id, [...(event.contacts || []).map(contact => contact.id), contactDrafts[event.id]])}
+                              className="comic-btn bg-[#3B82F6] text-white px-2 py-1 text-xs disabled:opacity-50"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <span className={cn("self-start text-[10px] px-2 py-0.5 rounded-full border font-medium",

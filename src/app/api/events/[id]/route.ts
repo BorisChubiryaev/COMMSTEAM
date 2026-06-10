@@ -10,10 +10,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data[field] = field === 'date' || field === 'endDate' ? new Date(body[field]) : body[field]
     }
   }
+  if ('contactIds' in body) {
+    data.contacts = {
+      set: Array.isArray(body.contactIds) ? body.contactIds.map((contactId: string) => ({ id: contactId })) : [],
+    }
+  }
   const event = await db.event.update({
     where: { id },
     data,
-    include: { organizer: true },
+    include: { organizer: true, contacts: true },
   })
   return Response.json(event)
 }

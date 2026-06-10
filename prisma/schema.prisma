@@ -16,6 +16,7 @@ model TeamMember {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   signals   Signal[] @relation("SignalAssignee")
+  collaborations Signal[] @relation("SignalCollaborators")
   comments  Comment[]
   events    Event[]
 }
@@ -77,6 +78,8 @@ model Signal {
   // Relations
   assigneeId       String?
   assignee         TeamMember?   @relation("SignalAssignee", fields: [assigneeId], references: [id])
+  collaborators    TeamMember[]  @relation("SignalCollaborators")
+  contacts         Contact[]     @relation("SignalContacts")
   comments         Comment[]
   incomingNews     IncomingNews[]
   decisionHistory  DecisionHistory[]
@@ -164,6 +167,8 @@ model Contact {
   telegram    String?
   notes       String?
   tags        String?   // comma separated
+  signals     Signal[]  @relation("SignalContacts")
+  events      Event[]   @relation("EventContacts")
   comments    Comment[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -180,6 +185,7 @@ model Event {
   status      String      @default("planned") // planned, confirmed, completed, cancelled
   organizerId String?
   organizer   TeamMember? @relation(fields: [organizerId], references: [id])
+  contacts    Contact[]   @relation("EventContacts")
   signal       Signal?     @relation("SignalCalendarEvent")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

@@ -36,6 +36,21 @@ function formatDateTimeLocal(value: string | null | undefined) {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
 }
 
+function getInitials(name: string) {
+  return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()
+}
+
+function contactMatchesText(contact: { name: string; company: string | null; role: string | null; tags: string | null }, text: string) {
+  const normalizedText = text.toLowerCase()
+  const candidates = [contact.name, contact.company, contact.role, contact.tags]
+    .filter(Boolean)
+    .flatMap(value => String(value).split(','))
+    .map(value => value.trim().toLowerCase())
+    .filter(value => value.length >= 3)
+
+  return candidates.some(value => normalizedText.includes(value))
+}
+
 function sectionTitle(section: Section) {
   const titles: Record<Section, string> = {
     kanban: 'Канбан',
@@ -564,9 +579,11 @@ function NewSignalModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
 // Signal Detail Modal (enhanced version)
 function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { selectedSignalId, signals, updateSignal, setSignals, setEvents, currentUser } = useAppStore()
+  const { selectedSignalId, signals, updateSignal, setSignals, setEvents, contacts, teamMembers, currentUser } = useAppStore()
   const signal = signals.find(s => s.id === selectedSignalId)
   const [comment, setComment] = useState('')
+  const [contactToAdd, setContactToAdd] = useState('')
+  const [collaboratorToAdd, setCollaboratorToAdd] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [aiContentLoading, setAiContentLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -667,6 +684,42 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
     } catch (err) {
       console.error(err)
     }
+  }
+
+  const handleSignalContactsChange = async (contactIds: string[]) => {
+    const updated = await handleFieldUpdate('contactIds', contactIds)
+    if (updated) setContactToAdd('')
+  }
+
+  const handleCollaboratorsChange = async (memberIds: string[]) => {
+    const updated = await handleFieldUpdate('collaboratorIds', memberIds)
+    if (updated) setCollaboratorToAdd('')
+  }
+
+  const handleAutoLinkContacts = async () => {
+    if (!signal) return
+    const signalText = [signal.title, signal.content, signal.aiSummary, signal.aiContent, signal.source, signal.signalType]
+      .filter(Boolean)
+      .join(' ')
+    const existingIds = new Set((signal.contacts || []).map(contact => contact.id))
+    const matchedIds = contacts
+      .filter(contact => contactMatchesText(contact, signalText))
+      .map(contact => contact.id)
+    const nextIds = Array.from(new Set([...existingIds, ...matchedIds]))
+
+    if (nextIds.length === existingIds.size) {
+      toast({
+        title: 'Совпадений не найдено',
+        description: 'Пока не вижу в тексте имён, компаний или тегов из контактов.',
+      })
+      return
+    }
+
+    await handleSignalContactsChange(nextIds)
+    toast({
+      title: 'Контакты подтянуты',
+      description: `Добавлено связей: ${nextIds.length - existingIds.size}`,
+    })
   }
 
   const handleGenerateContent = async () => {
@@ -885,6 +938,119 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <option value="Инфоповод">Инфоповод</option>
                 <option value="Задача/Поручение">Задача/Поручение</option>
               </select>
+            </div>
+          </div>
+
+          <div className="border-2 border-[#3B82F6] rounded-lg p-4 bg-blue-50/50 dark:bg-blue-900/10">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold">👥 Люди и команда</h3>
+                <p className="text-[10px] text-muted-foreground">Связи для будущей базы знаний: участники, упоминания и коллеги в работе</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoLinkContacts}
+                className="comic-btn bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 text-xs inline-flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Найти в контактах
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold mb-1">Контакты, которые участвуют или фигурируют</label>
+                <div className="flex gap-2">
+                  <select
+                    value={contactToAdd}
+                    onChange={e => setContactToAdd(e.target.value)}
+                    className="min-w-0 flex-1 p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#3B82F6] bg-[var(--comic-input-bg)] text-foreground"
+                  >
+                    <option value="">Выберите контакт...</option>
+                    {contacts
+                      .filter(contact => !(signal.contacts || []).some(linked => linked.id === contact.id))
+                      .map(contact => (
+                        <option key={contact.id} value={contact.id}>
+                          {contact.name}{contact.company ? ` · ${contact.company}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!contactToAdd}
+                    onClick={() => handleSignalContactsChange([...(signal.contacts || []).map(contact => contact.id), contactToAdd])}
+                    className="comic-btn bg-[#3B82F6] text-white px-3 py-2 text-xs disabled:opacity-50"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(signal.contacts || []).length === 0 ? (
+                    <span className="text-xs text-muted-foreground italic">Пока нет связанных контактов</span>
+                  ) : (
+                    (signal.contacts || []).map(contact => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => handleSignalContactsChange((signal.contacts || []).filter(item => item.id !== contact.id).map(item => item.id))}
+                        className="rounded-full border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-2.5 py-1 text-xs font-medium text-[#3B82F6] hover:bg-[#3B82F6]/20"
+                        title="Убрать связь"
+                      >
+                        {contact.name} ×
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold mb-1">Коллеги, привлеченные к задаче</label>
+                <div className="flex gap-2">
+                  <select
+                    value={collaboratorToAdd}
+                    onChange={e => setCollaboratorToAdd(e.target.value)}
+                    className="min-w-0 flex-1 p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#00C9A7] bg-[var(--comic-input-bg)] text-foreground"
+                  >
+                    <option value="">Выберите коллегу...</option>
+                    {teamMembers
+                      .filter(member => member.id !== signal.assigneeId)
+                      .filter(member => !(signal.collaborators || []).some(linked => linked.id === member.id))
+                      .map(member => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}{member.role ? ` · ${member.role}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!collaboratorToAdd}
+                    onClick={() => handleCollaboratorsChange([...(signal.collaborators || []).map(member => member.id), collaboratorToAdd])}
+                    className="comic-btn bg-[#00C9A7] text-white px-3 py-2 text-xs disabled:opacity-50"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(signal.collaborators || []).length === 0 ? (
+                    <span className="text-xs text-muted-foreground italic">Пока никто дополнительно не привлечен</span>
+                  ) : (
+                    (signal.collaborators || []).map(member => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => handleCollaboratorsChange((signal.collaborators || []).filter(item => item.id !== member.id).map(item => item.id))}
+                        className="inline-flex items-center gap-1 rounded-full border border-[#00C9A7]/30 bg-[#00C9A7]/10 px-2 py-1 text-xs font-medium text-[#008f77] hover:bg-[#00C9A7]/20"
+                        title="Убрать из задачи"
+                      >
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#00C9A7] text-[8px] font-bold text-white">
+                          {getInitials(member.name)}
+                        </span>
+                        {member.name} ×
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

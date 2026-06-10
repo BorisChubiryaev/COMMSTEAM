@@ -8,6 +8,8 @@ function eventTypeFromPublicationType(publicationType: string | null) {
 
 const signalInclude = {
   assignee: true,
+  collaborators: true,
+  contacts: true,
   calendarEvent: true,
   comments: {
     include: { author: true },
@@ -46,6 +48,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  if ('contactIds' in body) {
+    data.contacts = {
+      set: Array.isArray(body.contactIds) ? body.contactIds.map((contactId: string) => ({ id: contactId })) : [],
+    }
+  }
+
+  if ('collaboratorIds' in body) {
+    data.collaborators = {
+      set: Array.isArray(body.collaboratorIds) ? body.collaboratorIds.map((memberId: string) => ({ id: memberId })) : [],
+    }
+  }
+
   const existing = await db.signal.findUnique({
     where: { id },
     select: { calendarEventId: true },
@@ -53,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const syncCalendar = 'launchDate' in body || 'launchLocation' in body || 'publicationType' in body || 'title' in body || 'content' in body || 'assigneeId' in body
+  const syncCalendar = 'launchDate' in body || 'launchLocation' in body || 'publicationType' in body || 'title' in body || 'content' in body || 'assigneeId' in body || 'contactIds' in body
 
   const signal = await db.$transaction(async (tx) => {
     const updated = await tx.signal.update({
@@ -76,6 +90,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return updated
     }
 
+    const eventContactLinks = updated.contacts.map((contact) => ({ id: contact.id }))
     const eventData = {
       title: `Запуск: ${updated.title}`,
       description: updated.content || updated.aiSummary || null,
@@ -89,7 +104,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (updated.calendarEventId) {
       await tx.event.update({
         where: { id: updated.calendarEventId },
-        data: eventData,
+        data: { ...eventData, contacts: { set: eventContactLinks } },
       })
       return tx.signal.findUniqueOrThrow({
         where: { id },
@@ -97,13 +112,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       })
     }
 
-    const event = await tx.event.create({ data: eventData })
+    const event = await tx.event.create({
+      data: { ...eventData, contacts: { connect: eventContactLinks } },
+    })
     return tx.signal.update({
       where: { id },
       data: { calendarEventId: event.id },
       include: signalInclude,
     })
-  })
+  }, { timeout: 15000 })
 
   return Response.json(signal)
 }
