@@ -27,6 +27,10 @@ export interface Signal {
   distribution: string | null
   publicationType: string | null
   aiContent: string | null
+  launchDate: string | null
+  launchLocation: string | null
+  calendarEventId: string | null
+  calendarEvent?: Event | null
   status: string
   reach: number | null
   engagement: number | null

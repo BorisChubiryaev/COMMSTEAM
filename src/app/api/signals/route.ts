@@ -8,6 +8,7 @@ export async function GET(req: Request) {
     where: status ? { status } : undefined,
     include: {
       assignee: true,
+      calendarEvent: true,
       comments: {
         include: { author: true },
         orderBy: { createdAt: 'desc' },
@@ -28,11 +29,14 @@ export async function POST(req: Request) {
       aiSummary: body.aiSummary || null,
       source: body.source || null,
       signalType: body.signalType || null,
+      launchDate: body.launchDate ? new Date(body.launchDate) : null,
+      launchLocation: body.launchLocation || null,
       status: body.status || 'input',
       assigneeId: body.assigneeId || null,
     },
     include: {
       assignee: true,
+      calendarEvent: true,
       comments: { include: { author: true } },
     },
   })

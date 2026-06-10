@@ -13,7 +13,7 @@ import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
-import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3 } from 'lucide-react'
+import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3, MapPin } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/hooks/use-toast'
 
@@ -27,6 +27,14 @@ const MOBILE_NAV_ITEMS = [
   { id: 'analytics' as const, icon: BarChart3, label: 'Аналитика' },
   { id: 'help' as const, icon: HelpCircle, label: 'Справка' },
 ]
+
+function formatDateTimeLocal(value: string | null | undefined) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const timezoneOffset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
+}
 
 function sectionTitle(section: Section) {
   const titles: Record<Section, string> = {
@@ -556,7 +564,7 @@ function NewSignalModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
 // Signal Detail Modal (enhanced version)
 function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { selectedSignalId, signals, updateSignal, setSignals, currentUser } = useAppStore()
+  const { selectedSignalId, signals, updateSignal, setSignals, setEvents, currentUser } = useAppStore()
   const signal = signals.find(s => s.id === selectedSignalId)
   const [comment, setComment] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
@@ -596,8 +604,17 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }
 
+  const refreshEvents = async () => {
+    try {
+      const res = await fetch('/api/events')
+      if (res.ok) setEvents(await res.json())
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const handleFieldUpdate = async (field: string, value: any) => {
-    if (!signal) return
+    if (!signal) return null
     try {
       const res = await fetch(`/api/signals/${signal.id}`, {
         method: 'PATCH',
@@ -608,10 +625,15 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
         const updated = await res.json()
         updateSignal(updated)
         setSignals(signals.map(s => s.id === updated.id ? updated : s))
+        if (['launchDate', 'launchLocation', 'publicationType'].includes(field)) {
+          await refreshEvents()
+        }
+        return updated
       }
     } catch (err) {
       console.error(err)
     }
+    return null
   }
 
   const handleDelete = async () => {
@@ -1006,6 +1028,48 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                       {t}
                     </button>
                   ))}
+                </div>
+              </div>
+              <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold mb-1">Дата и время события</label>
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="datetime-local"
+                        value={formatDateTimeLocal(signal.launchDate)}
+                        onChange={e => handleFieldUpdate('launchDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                        className="w-full p-2 pl-9 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#FF6B35] bg-[var(--comic-input-bg)] text-foreground"
+                      />
+                    </div>
+                    {signal.launchDate && (
+                      <button
+                        type="button"
+                        onClick={() => handleFieldUpdate('launchDate', null)}
+                        className="comic-btn bg-[var(--comic-bg-hover)] text-foreground px-3 py-2 text-xs"
+                        title="Убрать событие из календаря"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {signal.calendarEventId ? 'Событие уже добавлено в календарь' : 'После выбора даты событие появится в календаре'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Место</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={signal.launchLocation || ''}
+                      onChange={e => handleFieldUpdate('launchLocation', e.target.value)}
+                      className="w-full p-2 pl-9 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#FF6B35] bg-[var(--comic-input-bg)] text-foreground"
+                      placeholder="Где пройдет событие?"
+                    />
+                  </div>
                 </div>
               </div>
               <div>

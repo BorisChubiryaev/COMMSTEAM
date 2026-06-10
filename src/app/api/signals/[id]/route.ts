@@ -1,16 +1,25 @@
 import { db } from '@/lib/db'
 
+function eventTypeFromPublicationType(publicationType: string | null) {
+  if (publicationType === 'Выступление') return 'Выступление'
+  if (publicationType === 'Мероприятие/Митап') return 'Мероприятие'
+  return 'Встреча'
+}
+
+const signalInclude = {
+  assignee: true,
+  calendarEvent: true,
+  comments: {
+    include: { author: true },
+    orderBy: { createdAt: 'desc' as const },
+  },
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const signal = await db.signal.findUnique({
     where: { id },
-    include: {
-      assignee: true,
-      comments: {
-        include: { author: true },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
+    include: signalInclude,
   })
   if (!signal) return Response.json({ error: 'Not found' }, { status: 404 })
   return Response.json(signal)
@@ -24,7 +33,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const allowedFields = [
     'title', 'content', 'link', 'aiSummary', 'source', 'signalType',
     'relevance', 'alignment', 'urgency', 'potential', 'risks', 'priority',
-    'meanings', 'distribution', 'publicationType', 'aiContent', 'status',
+    'meanings', 'distribution', 'publicationType', 'aiContent', 'launchDate',
+    'launchLocation', 'status',
     'reach', 'engagement', 'mediaMentions', 'traffic', 'leads',
     'businessImpact', 'whatWorked', 'whatDidntWork', 'newInsights',
     'meaningMapUpdate', 'assigneeId',
@@ -32,21 +42,69 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   
   for (const field of allowedFields) {
     if (field in body) {
-      data[field] = body[field]
+      data[field] = field === 'launchDate' && body[field] ? new Date(body[field]) : body[field]
     }
   }
-  
-  const signal = await db.signal.update({
+
+  const existing = await db.signal.findUnique({
     where: { id },
-    data,
-    include: {
-      assignee: true,
-      comments: {
-        include: { author: true },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
+    select: { calendarEventId: true },
   })
+
+  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  const syncCalendar = 'launchDate' in body || 'launchLocation' in body || 'publicationType' in body || 'title' in body || 'content' in body || 'assigneeId' in body
+
+  const signal = await db.$transaction(async (tx) => {
+    const updated = await tx.signal.update({
+      where: { id },
+      data,
+      include: signalInclude,
+    })
+
+    if (!syncCalendar) return updated
+
+    if (!updated.launchDate) {
+      if (existing.calendarEventId) {
+        await tx.event.delete({ where: { id: existing.calendarEventId } }).catch(() => null)
+        return tx.signal.update({
+          where: { id },
+          data: { calendarEventId: null },
+          include: signalInclude,
+        })
+      }
+      return updated
+    }
+
+    const eventData = {
+      title: `Запуск: ${updated.title}`,
+      description: updated.content || updated.aiSummary || null,
+      date: updated.launchDate,
+      location: updated.launchLocation || null,
+      type: eventTypeFromPublicationType(updated.publicationType),
+      status: 'planned',
+      organizerId: updated.assigneeId || null,
+    }
+
+    if (updated.calendarEventId) {
+      await tx.event.update({
+        where: { id: updated.calendarEventId },
+        data: eventData,
+      })
+      return tx.signal.findUniqueOrThrow({
+        where: { id },
+        include: signalInclude,
+      })
+    }
+
+    const event = await tx.event.create({ data: eventData })
+    return tx.signal.update({
+      where: { id },
+      data: { calendarEventId: event.id },
+      include: signalInclude,
+    })
+  })
+
   return Response.json(signal)
 }
 

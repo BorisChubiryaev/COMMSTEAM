@@ -52,6 +52,10 @@ model Signal {
   // Launch
   publicationType  String?       // Посты в соцсетях, Статья, Пресс-релиз, Выступление, Внутренняя коммуникация, Мероприятие/Митап, Реклама
   aiContent        String?       // AI-generated content for publication
+  launchDate       DateTime?     // Дата и время события/запуска
+  launchLocation   String?       // Место события/запуска
+  calendarEventId  String?       @unique
+  calendarEvent    Event?        @relation("SignalCalendarEvent", fields: [calendarEventId], references: [id], onDelete: SetNull)
 
   // Status (workflow stage)
   status           String        @default("input") // input, classification, evaluation, meaning, distribution, launch, measurement, feedback, completed, archived
@@ -176,6 +180,7 @@ model Event {
   status      String      @default("planned") // planned, confirmed, completed, cancelled
   organizerId String?
   organizer   TeamMember? @relation(fields: [organizerId], references: [id])
+  signal       Signal?     @relation("SignalCalendarEvent")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
