@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 
 const SEED_MEMBERS = [
-  { name: 'Анна Петрова', role: 'Руководитель', email: 'anna@commteam.ru' },
+  { name: 'Дарья Егорова', role: 'Руководитель', email: 'd@commteam.ru' },
   { name: 'Максим Козлов', role: 'PR-менеджер', email: 'max@commteam.ru' },
   { name: 'Елена Смирнова', role: 'Маркетолог', email: 'elena@commteam.ru' },
   { name: 'Дмитрий Волков', role: 'Внутренние коммуникации', email: 'dmitry@commteam.ru' },
