@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ExternalLink, History, Inbox, MessageCircle, RefreshCw, RotateCcw, Send, Sparkles, Trash2 } from 'lucide-react'
-import { useAppStore, type IncomingNews } from '@/lib/store'
+import { useAppStore, type IncomingNews, type Signal } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 
@@ -56,6 +56,7 @@ export function IncomingNewsSection() {
   const { incomingNews, setIncomingNews, updateIncomingNews, signals, setSignals, setSelectedSignalId } = useAppStore()
   const [activeStatus, setActiveStatus] = useState<string>('new')
   const [loading, setLoading] = useState(false)
+  const [bulkConverting, setBulkConverting] = useState(false)
   const [convertingId, setConvertingId] = useState<string | null>(null)
   const [analyzingId, setAnalyzingId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -70,6 +71,10 @@ export function IncomingNewsSection() {
   const visibleItems = useMemo(() => {
     return incomingNews.filter(item => activeStatus === 'all' || item.status === activeStatus)
   }, [incomingNews, activeStatus])
+
+  const convertibleItems = useMemo(() => {
+    return incomingNews.filter(item => item.status === 'new' && !item.signalId)
+  }, [incomingNews])
 
   const loadIncomingNews = async () => {
     setLoading(true)
@@ -111,6 +116,50 @@ export function IncomingNewsSection() {
       })
     } finally {
       setConvertingId(null)
+    }
+  }
+
+  const convertAllToSignals = async () => {
+    if (convertibleItems.length === 0) return
+
+    setBulkConverting(true)
+    try {
+      const results: Array<{ incomingNews: IncomingNews; signal: Signal }> = []
+      const failed: string[] = []
+
+      for (const item of convertibleItems) {
+        try {
+          const res = await fetch(`/api/incoming-news/${item.id}/convert`, { method: 'POST' })
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error || 'Не удалось отправить новость в канбан')
+          }
+          results.push(await res.json())
+        } catch (err) {
+          console.error('Failed to convert incoming news:', err)
+          failed.push(item.title)
+        }
+      }
+
+      if (results.length > 0) {
+        const updatedIncomingById = new Map(results.map(result => [result.incomingNews.id, result.incomingNews]))
+        const newSignals = results
+          .map(result => result.signal)
+          .filter(signal => !signals.some(existing => existing.id === signal.id))
+
+        setIncomingNews(incomingNews.map(item => updatedIncomingById.get(item.id) || item))
+        setSignals([...newSignals, ...signals])
+      }
+
+      toast({
+        title: failed.length > 0 ? 'Часть новостей отправлена в канбан' : 'Все входящие добавлены в канбан',
+        description: failed.length > 0
+          ? `Готово: ${results.length}, не получилось: ${failed.length}`
+          : `Создано сигналов: ${results.length}`,
+        variant: failed.length > 0 ? 'destructive' : undefined,
+      })
+    } finally {
+      setBulkConverting(false)
     }
   }
 
@@ -185,6 +234,16 @@ export function IncomingNewsSection() {
         >
           <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
           Обновить
+        </button>
+        <button
+          type="button"
+          onClick={convertAllToSignals}
+          className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-xs px-3 py-2 flex items-center gap-1.5"
+          disabled={bulkConverting || convertibleItems.length === 0}
+          title={convertibleItems.length === 0 ? 'Нет новых входящих для добавления' : 'Отправить все новые входящие в канбан'}
+        >
+          <Send className="w-3.5 h-3.5" />
+          {bulkConverting ? 'Добавляем...' : `Добавить все${convertibleItems.length ? ` (${convertibleItems.length})` : ''}`}
         </button>
       </div>
 
@@ -319,8 +378,8 @@ export function IncomingNewsSection() {
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => analyzeIncoming(item)}
-                disabled={analyzingId === item.id || item.status === 'converted'}
+                  onClick={() => analyzeIncoming(item)}
+                  disabled={bulkConverting || analyzingId === item.id || item.status === 'converted'}
                 className="comic-btn bg-[#00C9A7] hover:bg-[#00b896] text-white px-3 py-2 text-xs inline-flex items-center gap-1.5"
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -338,7 +397,7 @@ export function IncomingNewsSection() {
                 <button
                   type="button"
                   onClick={() => convertToSignal(item)}
-                  disabled={convertingId === item.id || item.status === 'duplicate' || item.status === 'ignored'}
+                  disabled={bulkConverting || convertingId === item.id || item.status === 'duplicate' || item.status === 'ignored'}
                   className="comic-btn bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-3 py-2 text-xs inline-flex items-center gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" />
@@ -349,7 +408,7 @@ export function IncomingNewsSection() {
                 <button
                   type="button"
                   onClick={() => updateIncomingStatus(item, 'new', 'Вернули во входящие')}
-                  disabled={updatingId === item.id}
+                  disabled={bulkConverting || updatingId === item.id}
                   className="comic-btn bg-card text-foreground px-3 py-2 text-xs inline-flex items-center gap-1.5"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -359,7 +418,7 @@ export function IncomingNewsSection() {
                 <button
                   type="button"
                   onClick={() => updateIncomingStatus(item, 'ignored', 'Скрыли из входящих')}
-                  disabled={updatingId === item.id || item.status === 'converted'}
+                  disabled={bulkConverting || updatingId === item.id || item.status === 'converted'}
                   className="comic-btn bg-[var(--comic-bg-hover)] text-foreground px-3 py-2 text-xs inline-flex items-center gap-1.5"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

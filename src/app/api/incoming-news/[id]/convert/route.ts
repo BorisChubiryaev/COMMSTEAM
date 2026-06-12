@@ -14,7 +14,17 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
   const { id } = await context.params
   const incoming = await db.incomingNews.findUnique({
     where: { id },
-    include: { signal: true },
+    include: {
+      signal: {
+        include: {
+          assignee: true,
+          collaborators: true,
+          contacts: true,
+          calendarEvent: true,
+          comments: { include: { author: true } },
+        },
+      },
+    },
   })
 
   if (!incoming) {
@@ -49,6 +59,9 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
     },
     include: {
       assignee: true,
+      collaborators: true,
+      contacts: true,
+      calendarEvent: true,
       comments: { include: { author: true } },
     },
   })
@@ -59,7 +72,17 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
       status: 'converted',
       signalId: signal.id,
     },
-    include: { signal: true },
+    include: {
+      signal: {
+        include: {
+          assignee: true,
+          collaborators: true,
+          contacts: true,
+          calendarEvent: true,
+          comments: { include: { author: true } },
+        },
+      },
+    },
   })
 
   await db.decisionHistory.create({
