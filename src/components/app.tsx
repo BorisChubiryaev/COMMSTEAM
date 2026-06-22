@@ -219,7 +219,6 @@ export function App() {
     setCurrentUser(user)
     setAuthState('authed')
     setLoading(true)
-    await fetch('/api/seed', { method: 'POST' }).catch(() => {})
     await loadData()
   }, [setCurrentUser, loadData])
 

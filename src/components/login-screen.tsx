@@ -1,27 +1,56 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import type { TeamMember } from '@/lib/store'
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'comm_steam_test_bot'
+const BOT_ID = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || '8921085716'
 
 type TelegramAuthUser = Record<string, string | number>
 
 declare global {
   interface Window {
-    onTelegramAuth?: (user: TelegramAuthUser) => void
+    Telegram?: {
+      Login?: {
+        auth: (
+          options: { bot_id: string; request_access?: string; lang?: string },
+          callback: (user: TelegramAuthUser | false) => void,
+        ) => void
+      }
+    }
   }
 }
 
 export function LoginScreen({ onAuthenticated }: { onAuthenticated: (user: TeamMember) => void }) {
-  const widgetRef = useRef<HTMLDivElement>(null)
+  const [ready, setReady] = useState(() => typeof window !== 'undefined' && !!window.Telegram?.Login)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Load Telegram's widget script once; it exposes window.Telegram.Login.auth.
   useEffect(() => {
-    window.onTelegramAuth = async (user: TelegramAuthUser) => {
+    if (ready) return
+    const existing = document.getElementById('telegram-login-script') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => setReady(true))
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'telegram-login-script'
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.async = true
+    script.onload = () => setReady(true)
+    script.onerror = () => setError('Не удалось загрузить Telegram. Проверьте сеть или блокировщики.')
+    document.body.appendChild(script)
+  }, [ready])
+
+  const handleLogin = () => {
+    const login = window.Telegram?.Login
+    if (!login) { setError('Telegram ещё не загрузился, попробуйте через секунду'); return }
+
+    setError(null)
+    login.auth({ bot_id: BOT_ID, request_access: 'write' }, async (user) => {
+      if (!user) { setError('Вход отменён'); return }
       setSubmitting(true)
-      setError(null)
       try {
         const res = await fetch('/api/auth/telegram', {
           method: 'POST',
@@ -39,24 +68,8 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (user: TeamM
         setError('Сеть недоступна, попробуйте ещё раз')
         setSubmitting(false)
       }
-    }
-
-    // Inject the Telegram Login Widget script (renders its own button).
-    const container = widgetRef.current
-    if (container && !container.querySelector('script')) {
-      const script = document.createElement('script')
-      script.async = true
-      script.src = 'https://telegram.org/js/telegram-widget.js?22'
-      script.setAttribute('data-telegram-login', BOT_USERNAME)
-      script.setAttribute('data-size', 'large')
-      script.setAttribute('data-userpic', 'true')
-      script.setAttribute('data-request-access', 'write')
-      script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-      container.appendChild(script)
-    }
-
-    return () => { delete window.onTelegramAuth }
-  }, [onAuthenticated])
+    })
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -69,12 +82,15 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (user: TeamM
           Вход только для участников командного чата. Авторизуйтесь через Telegram.
         </p>
 
-        <div className="flex justify-center min-h-[48px]" ref={widgetRef} />
+        <Button
+          onClick={handleLogin}
+          disabled={!ready || submitting}
+          className="comic-btn bg-[#229ED9] hover:bg-[#1c8ac0] text-white h-11 px-6 text-base"
+        >
+          {submitting ? 'Проверяем доступ…' : ready ? '✈️  Войти через Telegram' : 'Загрузка…'}
+        </Button>
 
-        {submitting && <p className="text-sm text-muted-foreground mt-4">Проверяем доступ…</p>}
-        {error && (
-          <p className="text-sm text-red-500 mt-4 font-medium">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-500 mt-4 font-medium">{error}</p>}
 
         <p className="text-xs text-muted-foreground mt-6">
           Нет доступа? Попросите добавить вас в рабочую группу Telegram.
