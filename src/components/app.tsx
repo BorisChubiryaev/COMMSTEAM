@@ -72,6 +72,41 @@ export function App() {
   const [showNewSignal, setShowNewSignal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [lastSeenNotif, setLastSeenNotif] = useState(() =>
+    typeof window === 'undefined' ? 0 : Number(localStorage.getItem('notif-last-seen') || 0)
+  )
+
+  // Real notifications: fresh inbox items (e.g. from the Telegram bot) and
+  // signals waiting at the very start of the pipeline.
+  const notifications = [
+    ...incomingNews
+      .filter(item => item.status === 'new')
+      .map(item => ({
+        id: `inbox-${item.id}`,
+        kind: 'inbox' as const,
+        title: item.title,
+        meta: item.source === 'telegram' ? 'Из Telegram' : item.source,
+        createdAt: item.createdAt,
+      })),
+    ...signals
+      .filter(signal => signal.status === 'input')
+      .map(signal => ({
+        id: `signal-${signal.id}`,
+        kind: 'signal' as const,
+        signalId: signal.id,
+        title: signal.title,
+        meta: signal.source || signal.signalType || 'Новый сигнал',
+        createdAt: signal.createdAt,
+      })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const unreadCount = notifications.filter(n => new Date(n.createdAt).getTime() > lastSeenNotif).length
+
+  const markNotificationsSeen = () => {
+    const now = Date.now()
+    localStorage.setItem('notif-last-seen', String(now))
+    setLastSeenNotif(now)
+  }
 
   // Close modals when section changes
   useEffect(() => {
@@ -186,6 +221,39 @@ export function App() {
     })
   }, [])
 
+  // Silent background refresh — keeps signals and incoming news in sync with
+  // the server (e.g. news arriving from the Telegram bot) without a full reload.
+  const refreshData = useCallback(async () => {
+    try {
+      const [signalsRes, incomingNewsRes] = await Promise.all([
+        fetch('/api/signals'),
+        fetch('/api/incoming-news'),
+      ])
+      if (signalsRes.ok) setSignals(await signalsRes.json())
+      if (incomingNewsRes.ok) setIncomingNews(await incomingNewsRes.json())
+    } catch (err) {
+      console.error('Background refresh failed:', err)
+    }
+  }, [setSignals, setIncomingNews])
+
+  // Poll for updates every 20s while the tab is visible and the user is not
+  // mid-edit (no modal open), so live data never clobbers an open form.
+  useEffect(() => {
+    const POLL_INTERVAL = 20000
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return
+      if (selectedSignalId || showNewSignal) return
+      refreshData()
+    }
+    const interval = setInterval(tick, POLL_INTERVAL)
+    const onVisible = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [refreshData, selectedSignalId, showNewSignal])
+
   const renderSection = () => {
     switch (activeSection) {
       case 'kanban': return <KanbanBoard />
@@ -274,11 +342,15 @@ export function App() {
         </Button>
 
         <div className="relative">
-          <Button variant="ghost" size="icon" className="relative comic-wiggle" onClick={() => setShowNotifications(!showNotifications)}>
+          <Button variant="ghost" size="icon" className="relative comic-wiggle" onClick={() => {
+            const opening = !showNotifications
+            setShowNotifications(opening)
+            if (opening) markNotificationsSeen()
+          }}>
             <Bell className="w-5 h-5" />
-            {signals.filter(s => s.status === 'input').length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF3F8E] text-white text-[10px] rounded-full flex items-center justify-center comic-pulse">
-                {signals.filter(s => s.status === 'input').length}
+                {unreadCount}
               </span>
             )}
           </Button>
@@ -294,22 +366,28 @@ export function App() {
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                {signals.filter(s => s.status === 'input').length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">Нет новых сигналов</div>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">Пока нет уведомлений</div>
                 ) : (
-                  signals.filter(s => s.status === 'input').map(signal => (
+                  notifications.map(n => (
                     <button
-                      key={signal.id}
+                      key={n.id}
                       className="w-full p-3 text-left hover:bg-[var(--comic-bg-hover)] border-b border-border transition-colors"
                       onClick={() => {
-                        setSelectedSignalId(signal.id)
+                        if (n.kind === 'signal') {
+                          setSelectedSignalId(n.signalId)
+                        } else {
+                          setActiveSection('inbox')
+                        }
                         setShowNotifications(false)
                       }}
                     >
-                      <p className="text-sm font-bold truncate">{signal.title}</p>
+                      <p className="text-sm font-bold truncate">{n.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        {signal.source && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--comic-tag-bg)] text-muted-foreground">{signal.source}</span>}
-                        {signal.signalType && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00C9A7]/10 text-[#00C9A7]">{signal.signalType}</span>}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${n.kind === 'inbox' ? 'bg-[#FF6B35]/10 text-[#FF6B35]' : 'bg-[#00C9A7]/10 text-[#00C9A7]'}`}>
+                          {n.kind === 'inbox' ? 'Входящее' : 'Сигнал'}
+                        </span>
+                        {n.meta && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--comic-tag-bg)] text-muted-foreground">{n.meta}</span>}
                       </div>
                     </button>
                   ))

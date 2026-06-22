@@ -1,5 +1,13 @@
 import { db } from '@/lib/db'
 import { classifyIncomingNews } from '@/lib/incoming-news-intelligence'
+import { convertIncomingToSignal, ignoreIncoming } from '@/lib/incoming-news-actions'
+import {
+  isTelegramConfigured,
+  tgAnswerCallbackQuery,
+  tgEditMessageText,
+  tgSendMessage,
+  type ReplyMarkup,
+} from '@/lib/telegram'
 import { after } from 'next/server'
 
 type TelegramUser = {
@@ -17,12 +25,20 @@ type TelegramMessage = {
   from?: TelegramUser
 }
 
+type TelegramCallbackQuery = {
+  id: string
+  data?: string
+  from?: TelegramUser
+  message?: TelegramMessage
+}
+
 type TelegramUpdate = {
   update_id: number
   message?: TelegramMessage
   edited_message?: TelegramMessage
   channel_post?: TelegramMessage
   edited_channel_post?: TelegramMessage
+  callback_query?: TelegramCallbackQuery
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/i
@@ -51,6 +67,10 @@ function getTelegramName(user?: TelegramUser) {
   return user.username ? `@${user.username}` : fullName || String(user.id || '')
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 function telegramReply(chatId: number | string | undefined, text: string) {
   if (!chatId) return Response.json({ ok: true })
   return Response.json({
@@ -58,6 +78,129 @@ function telegramReply(chatId: number | string | undefined, text: string) {
     chat_id: chatId,
     text,
   })
+}
+
+function itemActionsKeyboard(id: string): ReplyMarkup {
+  return {
+    inline_keyboard: [[
+      { text: '➡️ В канбан', callback_data: `conv:${id}` },
+      { text: '🚫 Игнор', callback_data: `ign:${id}` },
+    ]],
+  }
+}
+
+const PRIORITY_LABEL: Record<string, string> = {
+  A: '🔴 A — высокий',
+  B: '🟠 B — средний',
+  C: '🟡 C — низкий',
+  Отклонено: '⚪️ Отклонено',
+}
+
+// Send the AI verdict back to the user once async classification finishes.
+async function sendAnalysisFollowup(incomingId: string, chatId: number | string) {
+  if (!isTelegramConfigured()) return
+
+  const item = await db.incomingNews.findUnique({
+    where: { id: incomingId },
+    include: { signal: { select: { title: true } }, duplicateOf: { select: { title: true } } },
+  })
+  if (!item) return
+
+  if (item.status === 'duplicate') {
+    const dupTitle = item.signal?.title || item.duplicateOf?.title || ''
+    await tgSendMessage(
+      chatId,
+      `♻️ Похоже на дубль (${item.duplicateScore ?? '?'}%).\n${escapeHtml(item.duplicateReason || dupTitle)}`,
+    )
+    return
+  }
+
+  const lines = [`🧠 <b>AI-разбор:</b> ${escapeHtml(item.title)}`]
+  if (item.aiSummary) lines.push('', escapeHtml(item.aiSummary))
+
+  const facts: string[] = []
+  if (item.aiSignalType) facts.push(`Тип: ${escapeHtml(item.aiSignalType)}`)
+  if (item.aiSource) facts.push(`Источник: ${escapeHtml(item.aiSource)}`)
+  if (item.aiPriority) facts.push(`Приоритет: ${PRIORITY_LABEL[item.aiPriority] || item.aiPriority}`)
+  const scores = [
+    item.aiRelevance != null ? `актуальность ${item.aiRelevance}/5` : null,
+    item.aiAlignment != null ? `соответствие ${item.aiAlignment}/5` : null,
+    item.aiUrgency != null ? `срочность ${item.aiUrgency}/5` : null,
+  ].filter(Boolean)
+  if (scores.length) facts.push(`Оценки: ${scores.join(', ')}`)
+  if (facts.length) lines.push('', facts.join('\n'))
+
+  await tgSendMessage(chatId, lines.join('\n'), { replyMarkup: itemActionsKeyboard(incomingId) })
+}
+
+async function handleCallback(query: TelegramCallbackQuery) {
+  const chatId = query.message?.chat?.id
+  const messageId = query.message?.message_id
+  const [action, id] = (query.data || '').split(':')
+
+  if (!id) {
+    await tgAnswerCallbackQuery(query.id)
+    return Response.json({ ok: true })
+  }
+
+  const actor = getTelegramName(query.from) || 'telegram'
+
+  if (action === 'conv') {
+    const result = await convertIncomingToSignal(id, actor)
+    if ('error' in result) {
+      await tgAnswerCallbackQuery(query.id, 'Новость не найдена')
+    } else {
+      await tgAnswerCallbackQuery(query.id, 'Отправлено в канбан ✅')
+      if (chatId && messageId) {
+        await tgEditMessageText(chatId, messageId, `✅ Отправлено в канбан: ${escapeHtml(result.signal?.title || '')}`)
+      }
+    }
+  } else if (action === 'ign') {
+    const result = await ignoreIncoming(id, actor)
+    await tgAnswerCallbackQuery(query.id, 'error' in result ? 'Новость не найдена' : 'Скрыто 🚫')
+    if (!('error' in result) && chatId && messageId) {
+      await tgEditMessageText(chatId, messageId, '🚫 Новость проигнорирована')
+    }
+  } else {
+    await tgAnswerCallbackQuery(query.id)
+  }
+
+  return Response.json({ ok: true })
+}
+
+async function handleCommand(text: string, chatId: number | string | undefined) {
+  if (text.startsWith('/start') || text.startsWith('/help')) {
+    return telegramReply(
+      chatId,
+      [
+        'Привет! Я бот CommsTeam Hub.',
+        '',
+        'Присылайте ссылку или текст новости — я сохраню её во «Входящие» и сделаю AI-разбор.',
+        '',
+        'Команды:',
+        '/list — последние входящие',
+        '/help — эта справка',
+      ].join('\n'),
+    )
+  }
+
+  if (text.startsWith('/list')) {
+    const items = await db.incomingNews.findMany({
+      where: { status: 'new' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { title: true, aiPriority: true },
+    })
+    if (items.length === 0) {
+      return telegramReply(chatId, 'Во «Входящих» пусто 🎉')
+    }
+    const list = items
+      .map((item, i) => `${i + 1}. ${item.title}${item.aiPriority ? ` — ${item.aiPriority}` : ''}`)
+      .join('\n')
+    return telegramReply(chatId, `Последние входящие:\n\n${list}`)
+  }
+
+  return null
 }
 
 export async function POST(req: Request) {
@@ -69,6 +212,11 @@ export async function POST(req: Request) {
   }
 
   const update = await req.json() as TelegramUpdate
+
+  if (update.callback_query) {
+    return handleCallback(update.callback_query)
+  }
+
   const message = getMessage(update)
 
   if (!message) {
@@ -78,11 +226,9 @@ export async function POST(req: Request) {
   const text = getMessageText(message)
   const chatId = message.chat?.id
 
-  if (text.startsWith('/start')) {
-    return telegramReply(
-      chatId,
-      'Присылайте сюда ссылку или текст новости. Я сохраню ее во входящие CommsTeam Hub.'
-    )
+  if (text.startsWith('/')) {
+    const handled = await handleCommand(text, chatId)
+    if (handled) return handled
   }
 
   if (!text) {
@@ -140,10 +286,13 @@ export async function POST(req: Request) {
       content: item.content,
       link: item.link,
     })
+    if (chatId) {
+      await sendAnalysisFollowup(item.id, chatId)
+    }
   })
 
   return telegramReply(
     chatId,
-    `Сохранил во входящие: ${item.title}\nАвтор: ${getTelegramName(message.from) || 'не указан'}`
+    `Сохранил во входящие: ${item.title}\nГотовлю AI-разбор…`,
   )
 }
