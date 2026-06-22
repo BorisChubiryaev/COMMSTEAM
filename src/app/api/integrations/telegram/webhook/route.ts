@@ -5,6 +5,7 @@ import {
   isTelegramConfigured,
   tgAnswerCallbackQuery,
   tgEditMessageText,
+  tgGetChatMemberStatus,
   tgSendMessage,
   type ReplyMarkup,
 } from '@/lib/telegram'
@@ -178,6 +179,7 @@ async function handleCommand(text: string, chatId: number | string | undefined) 
         'Присылайте ссылку или текст новости — я сохраню её во «Входящие» и сделаю AI-разбор.',
         '',
         'Команды:',
+        '/login — получить код для входа на сайт',
         '/list — последние входящие',
         '/help — эта справка',
       ].join('\n'),
@@ -203,6 +205,52 @@ async function handleCommand(text: string, chatId: number | string | undefined) 
   return null
 }
 
+const LOGIN_ALLOWED_STATUSES = new Set(['creator', 'administrator', 'member', 'restricted'])
+const LOGIN_CODE_TTL_MS = 10 * 60 * 1000
+
+// Issue a one-time login code, but only to members of the team chat.
+async function handleLogin(message: TelegramMessage) {
+  const chatId = message.chat?.id
+  const userId = message.from?.id
+  if (!userId) return telegramReply(chatId, 'Не удалось определить ваш Telegram-аккаунт.')
+
+  const teamChatId = process.env.TELEGRAM_NOTIFY_CHAT_ID?.trim()
+  if (!teamChatId) return telegramReply(chatId, 'Командный чат не настроен. Обратитесь к администратору.')
+
+  const status = await tgGetChatMemberStatus(teamChatId, userId)
+  if (!status || !LOGIN_ALLOWED_STATUSES.has(status)) {
+    return telegramReply(chatId, '🚫 Нет доступа: вы не состоите в командном чате.')
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const name = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(' ').trim()
+    || message.from?.username
+    || `tg${userId}`
+
+  await db.teamMember.upsert({
+    where: { telegramId: String(userId) },
+    create: {
+      name,
+      telegramId: String(userId),
+      telegramChatId: String(chatId ?? userId),
+      telegramUsername: message.from?.username || null,
+      loginCode: code,
+      loginCodeExpiresAt: new Date(Date.now() + LOGIN_CODE_TTL_MS),
+    },
+    update: {
+      telegramChatId: String(chatId ?? userId),
+      telegramUsername: message.from?.username || null,
+      loginCode: code,
+      loginCodeExpiresAt: new Date(Date.now() + LOGIN_CODE_TTL_MS),
+    },
+  })
+
+  return telegramReply(
+    chatId,
+    `🔑 Ваш код для входа: ${code}\nВведите его на сайте. Код действует 10 минут.`,
+  )
+}
+
 export async function POST(req: Request) {
   const expectedSecret = getWebhookSecret()
   const actualSecret = req.headers.get('x-telegram-bot-api-secret-token')
@@ -225,6 +273,10 @@ export async function POST(req: Request) {
 
   const text = getMessageText(message)
   const chatId = message.chat?.id
+
+  if (text.startsWith('/login')) {
+    return handleLogin(message)
+  }
 
   if (text.startsWith('/')) {
     const handled = await handleCommand(text, chatId)

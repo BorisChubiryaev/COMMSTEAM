@@ -19,6 +19,10 @@ model TeamMember {
   telegramChatId   String?          // private chat id for direct messages
   telegramUsername String?
 
+  // Bot-issued one-time login code
+  loginCode          String?
+  loginCodeExpiresAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   signals   Signal[] @relation("SignalAssignee")
