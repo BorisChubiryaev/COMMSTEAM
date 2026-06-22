@@ -11,35 +11,25 @@ function buildName(data: { first_name?: string; last_name?: string; username?: s
   return full || data.username || `tg${data.id}`
 }
 
-export async function POST(req: Request) {
-  const payload = await req.json().catch(() => null)
-  if (!payload || typeof payload !== 'object') {
-    return NextResponse.json({ error: 'Bad request' }, { status: 400 })
-  }
+type AuthResult =
+  | { ok: true; token: string; member: { id: string; name: string } }
+  | { ok: false; status: number; error: string }
 
-  // Normalize every value to string for HMAC verification.
-  const data: Record<string, string> = {}
-  for (const [key, value] of Object.entries(payload)) {
-    if (value != null) data[key] = String(value)
-  }
-
+// Shared logic for both the POST (JSON) and GET (redirect) login flows.
+async function authenticate(data: Record<string, string>): Promise<AuthResult> {
   const verified = await verifyTelegramLogin(data)
   if (!verified) {
-    return NextResponse.json({ error: 'Подпись Telegram не прошла проверку' }, { status: 401 })
+    return { ok: false, status: 401, error: 'Подпись Telegram не прошла проверку' }
   }
 
-  // Gate access by membership in the team chat.
   const teamChatId = process.env.TELEGRAM_NOTIFY_CHAT_ID?.trim()
   if (!teamChatId) {
-    return NextResponse.json({ error: 'Командный чат не настроен (TELEGRAM_NOTIFY_CHAT_ID)' }, { status: 503 })
+    return { ok: false, status: 503, error: 'Командный чат не настроен (TELEGRAM_NOTIFY_CHAT_ID)' }
   }
 
   const status = await tgGetChatMemberStatus(teamChatId, verified.id)
   if (!status || !ALLOWED_STATUSES.has(status)) {
-    return NextResponse.json(
-      { error: 'Доступ только для участников командного чата. Попросите добавить вас в группу.' },
-      { status: 403 },
-    )
+    return { ok: false, status: 403, error: 'Доступ только для участников командного чата. Попросите добавить вас в группу.' }
   }
 
   const name = buildName(verified)
@@ -61,14 +51,54 @@ export async function POST(req: Request) {
   })
 
   const token = await createSession({ sub: member.id, tid: verified.id, name: member.name })
+  return { ok: true, token, member }
+}
 
-  const response = NextResponse.json({ user: member })
-  response.cookies.set(SESSION_COOKIE, token, {
+function sessionCookieOptions() {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
     maxAge: SESSION_MAX_AGE,
-  })
+  }
+}
+
+// POST — used by the JS callback flow (data is the Telegram user object).
+export async function POST(req: Request) {
+  const payload = await req.json().catch(() => null)
+  if (!payload || typeof payload !== 'object') {
+    return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+  }
+
+  const data: Record<string, string> = {}
+  for (const [key, value] of Object.entries(payload)) {
+    if (value != null) data[key] = String(value)
+  }
+
+  const result = await authenticate(data)
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
+  }
+
+  const response = NextResponse.json({ user: result.member })
+  response.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions())
+  return response
+}
+
+// GET — used by the Telegram Login Widget redirect flow (data-auth-url).
+// Telegram redirects the browser here with the auth fields in the query string.
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const data: Record<string, string> = {}
+  url.searchParams.forEach((value, key) => { data[key] = value })
+
+  const result = await authenticate(data)
+  if (!result.ok) {
+    return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(result.error)}`, url.origin))
+  }
+
+  const response = NextResponse.redirect(new URL('/', url.origin))
+  response.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions())
   return response
 }
