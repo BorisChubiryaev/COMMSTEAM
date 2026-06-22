@@ -1,4 +1,10 @@
 import { db } from '@/lib/db'
+import { notifyTeam } from '@/lib/notify'
+import { after } from 'next/server'
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
 
 function eventTypeFromPublicationType(publicationType: string | null) {
   if (publicationType === 'Выступление') return 'Выступление'
@@ -62,7 +68,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const existing = await db.signal.findUnique({
     where: { id },
-    select: { calendarEventId: true },
+    select: { calendarEventId: true, assigneeId: true },
   })
 
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -121,6 +127,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       include: signalInclude,
     })
   }, { timeout: 15000 })
+
+  // Notify the team when the assignee changes to a new person.
+  const assigneeChanged = 'assigneeId' in body && body.assigneeId && body.assigneeId !== existing.assigneeId
+  if (assigneeChanged && signal.assignee) {
+    after(() => notifyTeam(
+      `👤 Назначен ответственный: <b>${escapeHtml(signal.assignee!.name)}</b>\nСигнал: ${escapeHtml(signal.title)}`,
+    ))
+  }
 
   return Response.json(signal)
 }

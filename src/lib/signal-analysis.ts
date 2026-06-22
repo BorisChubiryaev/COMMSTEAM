@@ -187,7 +187,9 @@ export async function analyzeSignalInput(signal: SignalAnalysisInput) {
         ].join('\n\n'),
       },
     ],
-    maxTokens: 900,
+    maxTokens: 1500,
+    temperature: 0,
+    json: true,
   })
 
   return normalizeAnalysis(extractJson(content))

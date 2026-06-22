@@ -75,6 +75,7 @@ export function App() {
   const [lastSeenNotif, setLastSeenNotif] = useState(() =>
     typeof window === 'undefined' ? 0 : Number(localStorage.getItem('notif-last-seen') || 0)
   )
+  const notifRef = useRef<HTMLDivElement>(null)
 
   // Real notifications: fresh inbox items (e.g. from the Telegram bot) and
   // signals waiting at the very start of the pipeline.
@@ -156,15 +157,17 @@ export function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [setSelectedSignalId, setActiveSection])
 
-  // Close notifications when clicking outside
+  // Close notifications when clicking outside the bell/panel.
+  // Uses a ref + mousedown so it can't race the same click that opens the panel.
   useEffect(() => {
     if (!showNotifications) return
     const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('.relative')) setShowNotifications(false)
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false)
+      }
     }
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [showNotifications])
 
   // Load initial data
@@ -341,7 +344,7 @@ export function App() {
           {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5" />}
         </Button>
 
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <Button variant="ghost" size="icon" className="relative comic-wiggle" onClick={() => {
             const opening = !showNotifications
             setShowNotifications(opening)

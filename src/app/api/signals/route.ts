@@ -1,4 +1,10 @@
 import { db } from '@/lib/db'
+import { notifyTeam } from '@/lib/notify'
+import { after } from 'next/server'
+
+function escapeHtml(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -46,5 +52,12 @@ export async function POST(req: Request) {
       comments: { include: { author: true } },
     },
   })
+
+  if (signal.assignee) {
+    after(() => notifyTeam(
+      `👤 Назначен ответственный: <b>${escapeHtml(signal.assignee!.name)}</b>\nСигнал: ${escapeHtml(signal.title)}`,
+    ))
+  }
+
   return Response.json(signal)
 }

@@ -29,6 +29,7 @@ export async function POST(req: Request) {
         },
       ],
       maxTokens: 1000,
+      temperature: 0.7,
     })
 
     return Response.json({ content })
