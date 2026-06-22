@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { notifyTeam } from '@/lib/notify'
+import { notifyMember } from '@/lib/notify'
 import { after } from 'next/server'
 
 function escapeHtml(value: string) {
@@ -54,8 +54,9 @@ export async function POST(req: Request) {
   })
 
   if (signal.assignee) {
-    after(() => notifyTeam(
-      `👤 Назначен ответственный: <b>${escapeHtml(signal.assignee!.name)}</b>\nСигнал: ${escapeHtml(signal.title)}`,
+    after(() => notifyMember(
+      signal.assignee,
+      `👤 Вам назначен сигнал: <b>${escapeHtml(signal.title)}</b>`,
     ))
   }
 

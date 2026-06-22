@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAppStore, STATUS_LABELS, STATUSES, PRIORITY_COLORS, PRIORITY_BG, type Section } from '@/lib/store'
+import { useAppStore, STATUS_LABELS, STATUSES, PRIORITY_COLORS, PRIORITY_BG, type Section, type TeamMember } from '@/lib/store'
 import { Sidebar } from '@/components/sidebar'
+import { LoginScreen } from '@/components/login-screen'
 import { KanbanBoard } from '@/components/sections/kanban-board'
 import { IncomingNewsSection } from '@/components/sections/incoming-news-section'
 import { NewsFeedSection } from '@/components/sections/news-feed-section'
@@ -13,7 +14,7 @@ import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
-import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3, MapPin } from 'lucide-react'
+import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3, MapPin, LogOut } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/hooks/use-toast'
 
@@ -69,6 +70,7 @@ export function App() {
   const { activeSection, setActiveSection, toggleSidebar, currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents, signals, incomingNews, selectedSignalId, setSelectedSignalId } = useAppStore()
   const { theme, setTheme } = useTheme()
   const [loading, setLoading] = useState(true)
+  const [authState, setAuthState] = useState<'checking' | 'authed' | 'guest'>('checking')
   const [showNewSignal, setShowNewSignal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -184,9 +186,6 @@ export function App() {
       if (teamRes.ok) {
         const team = await teamRes.json()
         setTeamMembers(team)
-        if (team.length > 0 && !currentUser) {
-          setCurrentUser(team[0])
-        }
       }
 
       if (signalsRes.ok) {
@@ -213,16 +212,40 @@ export function App() {
     } finally {
       setLoading(false)
     }
-  }, [currentUser, setCurrentUser, setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents])
+  }, [setTeamMembers, setSignals, setIncomingNews, setContacts, setEvents])
+
+  // Check the Telegram session, then seed + load data only for authenticated users.
+  const bootstrap = useCallback(async (user: TeamMember) => {
+    setCurrentUser(user)
+    setAuthState('authed')
+    setLoading(true)
+    await fetch('/api/seed', { method: 'POST' }).catch(() => {})
+    await loadData()
+  }, [setCurrentUser, loadData])
+
+  const handleLogout = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+    setCurrentUser(null)
+    setAuthState('guest')
+  }, [setCurrentUser])
 
   useEffect(() => {
-    // Seed first, then load
-    fetch('/api/seed', { method: 'POST' }).then(() => {
-      loadData()
-    }).catch(() => {
-      loadData()
-    })
-  }, [])
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const { user } = await res.json()
+          await bootstrap(user)
+        } else {
+          setAuthState('guest')
+          setLoading(false)
+        }
+      } catch {
+        setAuthState('guest')
+        setLoading(false)
+      }
+    })()
+  }, [bootstrap])
 
   // Silent background refresh — keeps signals and incoming news in sync with
   // the server (e.g. news arriving from the Telegram bot) without a full reload.
@@ -271,7 +294,11 @@ export function App() {
     }
   }
 
-  if (loading) {
+  if (authState === 'guest') {
+    return <LoginScreen onAuthenticated={bootstrap} />
+  }
+
+  if (loading || authState === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -402,10 +429,15 @@ export function App() {
 
         {currentUser && (
           <div className="hidden sm:flex items-center gap-2 ml-2">
-            <div className="w-8 h-8 bg-[#FF6B35] rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-[var(--comic-border-color)] comic-shadow-sm">
-              {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            <div className="w-8 h-8 bg-[#FF6B35] rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-[var(--comic-border-color)] comic-shadow-sm overflow-hidden">
+              {currentUser.avatar
+                ? <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
+                : currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <span className="text-sm font-medium hidden md:block">{currentUser.name}</span>
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="Выйти" className="shrink-0">
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         )}
       </header>

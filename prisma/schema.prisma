@@ -13,6 +13,12 @@ model TeamMember {
   avatar    String?
   role      String?
   email     String?
+
+  // Telegram auth / DM delivery
+  telegramId       String?  @unique // Telegram user id (used for login + DMs)
+  telegramChatId   String?          // private chat id for direct messages
+  telegramUsername String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   signals   Signal[] @relation("SignalAssignee")

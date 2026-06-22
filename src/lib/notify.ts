@@ -21,3 +21,18 @@ export async function notifyTeam(text: string): Promise<boolean> {
   const result = await tgSendMessage(chatId, text)
   return result !== null
 }
+
+/**
+ * Notify a specific team member: DM them directly if their Telegram chat is
+ * linked, otherwise fall back to the shared team chat. Returns true if delivered.
+ */
+export async function notifyMember(
+  member: { telegramChatId: string | null } | null | undefined,
+  text: string,
+): Promise<boolean> {
+  if (member?.telegramChatId) {
+    const result = await tgSendMessage(member.telegramChatId, text)
+    if (result !== null) return true
+  }
+  return notifyTeam(text)
+}

@@ -76,6 +76,16 @@ export function tgEditMessageText(
   })
 }
 
+// Returns the member's status in a chat ('creator' | 'administrator' | 'member' |
+// 'restricted' | 'left' | 'kicked'), or null if the lookup failed.
+export async function tgGetChatMemberStatus(chatId: number | string, userId: number | string) {
+  const result = await callApi<{ status?: string }>('getChatMember', {
+    chat_id: chatId,
+    user_id: userId,
+  })
+  return result?.status ?? null
+}
+
 export function tgAnswerCallbackQuery(callbackQueryId: string, text?: string) {
   return callApi('answerCallbackQuery', {
     callback_query_id: callbackQueryId,
