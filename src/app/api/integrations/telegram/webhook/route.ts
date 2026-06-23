@@ -134,6 +134,25 @@ async function sendAnalysisFollowup(incomingId: string, chatId: number | string)
   await tgSendMessage(chatId, lines.join('\n'), { replyMarkup: itemActionsKeyboard(incomingId) })
 }
 
+// Post a new incoming item to the shared team chat (the team-wide feed).
+// Skipped for duplicates. The team can convert/ignore straight from the group.
+async function sendTeamFeed(incomingId: string) {
+  const teamChatId = process.env.TELEGRAM_NOTIFY_CHAT_ID?.trim()
+  if (!teamChatId || !isTelegramConfigured()) return
+
+  const item = await db.incomingNews.findUnique({ where: { id: incomingId } })
+  if (!item || item.status === 'duplicate') return
+
+  const from = [item.telegramFirstName, item.telegramLastName].filter(Boolean).join(' ').trim()
+    || (item.telegramUsername ? `@${item.telegramUsername}` : 'команда')
+
+  const lines = [`📥 <b>Новая входящая</b> · от ${escapeHtml(from)}`, escapeHtml(item.title)]
+  if (item.aiPriority) lines.push(`Приоритет: ${PRIORITY_LABEL[item.aiPriority] || item.aiPriority}`)
+  if (item.aiSummary) lines.push('', escapeHtml(item.aiSummary))
+
+  await tgSendMessage(teamChatId, lines.join('\n'), { replyMarkup: itemActionsKeyboard(incomingId) })
+}
+
 async function handleCallback(query: TelegramCallbackQuery) {
   const chatId = query.message?.chat?.id
   const messageId = query.message?.message_id
@@ -341,6 +360,7 @@ export async function POST(req: Request) {
     if (chatId) {
       await sendAnalysisFollowup(item.id, chatId)
     }
+    await sendTeamFeed(item.id)
   })
 
   return telegramReply(

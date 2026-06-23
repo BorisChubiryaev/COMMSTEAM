@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 
-export type Section = 'kanban' | 'inbox' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'help'
+export type Section = 'kanban' | 'inbox' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'members' | 'help'
 
 export interface TeamMember {
   id: string
   name: string
   avatar: string | null
   role: string | null
+  email?: string | null
+  telegramUsername?: string | null
+  createdAt?: string
 }
 
 export interface Signal {
@@ -158,6 +161,9 @@ interface AppState {
   
   selectedSignalId: string | null
   setSelectedSignalId: (id: string | null) => void
+
+  kanbanOnlyMine: boolean
+  setKanbanOnlyMine: (value: boolean) => void
   
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -190,6 +196,9 @@ export const useAppStore = create<AppState>((set) => ({
   
   selectedSignalId: null,
   setSelectedSignalId: (id) => set({ selectedSignalId: id }),
+
+  kanbanOnlyMine: false,
+  setKanbanOnlyMine: (value) => set({ kanbanOnlyMine: value }),
   
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),

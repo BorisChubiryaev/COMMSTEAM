@@ -3,6 +3,15 @@ import { db } from '@/lib/db'
 export async function GET() {
   const members = await db.teamMember.findMany({
     orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+      role: true,
+      email: true,
+      telegramUsername: true,
+      createdAt: true,
+    },
   })
   return Response.json(members)
 }

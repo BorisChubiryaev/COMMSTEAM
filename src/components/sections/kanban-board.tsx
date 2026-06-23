@@ -3,7 +3,7 @@
 import { useAppStore, PRIORITY_COLORS, PRIORITY_BG, type Signal } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
-import { Columns3, Filter, GitBranch, Search, TrendingUp, Clock, Zap, GripVertical } from 'lucide-react'
+import { Columns3, Filter, GitBranch, Search, TrendingUp, Clock, Zap, GripVertical, User } from 'lucide-react'
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -315,7 +315,7 @@ function KanbanGraphView({
 }
 
 export function KanbanBoard() {
-  const { signals, setSelectedSignalId, updateSignal, setSignals } = useAppStore()
+  const { signals, setSelectedSignalId, updateSignal, setSignals, currentUser, kanbanOnlyMine, setKanbanOnlyMine } = useAppStore()
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
   const [filterSource, setFilterSource] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -332,6 +332,7 @@ export function KanbanBoard() {
 
   const filteredSignals = useMemo(() => signals.filter(s => {
     if (s.status === 'archived') return false
+    if (kanbanOnlyMine && s.assigneeId !== currentUser?.id) return false
     if (filterPriority && s.priority !== filterPriority) return false
     if (filterSource && s.source !== filterSource) return false
     if (searchQuery) {
@@ -343,7 +344,7 @@ export function KanbanBoard() {
         s.signalType?.toLowerCase().includes(q)
     }
     return true
-  }), [signals, filterPriority, filterSource, searchQuery])
+  }), [signals, filterPriority, filterSource, searchQuery, kanbanOnlyMine, currentUser?.id])
 
   const activeSignals = signals.filter(s => s.status !== 'archived')
   const urgentCount = activeSignals.filter(s => s.priority === 'A').length
@@ -443,6 +444,17 @@ export function KanbanBoard() {
             {(filterPriority || filterSource) && (
               <span className="w-2 h-2 bg-[#FF3F8E] rounded-full" />
             )}
+          </button>
+          <button
+            onClick={() => setKanbanOnlyMine(!kanbanOnlyMine)}
+            title="Показать только назначенные на меня"
+            className={cn(
+              "comic-btn text-xs px-3 py-2 flex items-center gap-1",
+              kanbanOnlyMine ? "bg-[#FF6B35] text-white" : "bg-card text-foreground"
+            )}
+          >
+            <User className="w-3 h-3" />
+            Мои задачи
           </button>
           <div className="ml-auto flex items-center rounded-lg border-2 border-[var(--comic-border-color)] bg-card p-1 comic-shadow-sm max-sm:order-3 max-sm:ml-0 max-sm:w-full">
             <button

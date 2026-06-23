@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  UsersRound,
   Archive,
   BarChart3,
   Inbox,
@@ -25,6 +26,7 @@ const navItems = [
   { id: 'news' as const, icon: Newspaper, label: 'Новости', emoji: '🗞️', color: '#00C9A7' },
   { id: 'calendar' as const, icon: Calendar, label: 'Календарь', emoji: '📅', color: '#00C9A7' },
   { id: 'contacts' as const, icon: Users, label: 'Контакты', emoji: '👥', color: '#A78BFA' },
+  { id: 'members' as const, icon: UsersRound, label: 'Участники', emoji: '🧑‍🤝‍🧑', color: '#22D3EE' },
   { id: 'archive' as const, icon: Archive, label: 'Архив', emoji: '📦', color: '#9CA3AF' },
   { id: 'analytics' as const, icon: BarChart3, label: 'Аналитика', emoji: '📊', color: '#FBBF24' },
   { id: 'help' as const, icon: HelpCircle, label: 'Справка', emoji: '📖', color: '#FF3F8E' },
@@ -149,12 +151,17 @@ export function Sidebar() {
 
         {/* Team Members */}
         <div className="p-3 border-t border-white/10">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-gray-500 px-3 mb-2 font-bold">Команда</p>
+          <button
+            onClick={() => { setActiveSection('members'); setSidebarOpen(false) }}
+            className="w-full text-left text-[9px] uppercase tracking-[0.2em] text-gray-500 hover:text-gray-300 px-3 mb-2 font-bold transition-colors"
+          >
+            Команда · все участники →
+          </button>
           <div className="space-y-0.5">
-            {teamMembers.map((member) => (
+            {teamMembers.slice(0, 5).map((member) => (
               <button
                 key={member.id}
-                onClick={() => useAppStore.getState().setCurrentUser(member)}
+                onClick={() => { setActiveSection('members'); setSidebarOpen(false) }}
                 className={cn(
                   "w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all",
                   currentUser?.id === member.id
@@ -182,7 +189,7 @@ export function Sidebar() {
         {/* Footer */}
         <div className="p-3 border-t border-white/10">
           <p className="text-[9px] text-gray-500 text-center">
-            ⚡ CommsTeam Hub © 2025
+            ⚡ CommsTeam Hub © 2026
           </p>
         </div>
       </aside>

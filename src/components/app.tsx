@@ -12,9 +12,10 @@ import { ContactsSection } from '@/components/sections/contacts-section'
 import { ArchiveSection } from '@/components/sections/archive-section'
 import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
+import { MembersSection } from '@/components/sections/members-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
-import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, Archive, BarChart3, MapPin, LogOut } from 'lucide-react'
+import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, UsersRound, Archive, BarChart3, MapPin, LogOut } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/hooks/use-toast'
 
@@ -24,6 +25,7 @@ const MOBILE_NAV_ITEMS = [
   { id: 'news' as const, icon: Newspaper, label: 'Новости' },
   { id: 'calendar' as const, icon: Calendar, label: 'Календарь' },
   { id: 'contacts' as const, icon: Users, label: 'Контакты' },
+  { id: 'members' as const, icon: UsersRound, label: 'Участники' },
   { id: 'archive' as const, icon: Archive, label: 'Архив' },
   { id: 'analytics' as const, icon: BarChart3, label: 'Аналитика' },
   { id: 'help' as const, icon: HelpCircle, label: 'Справка' },
@@ -59,6 +61,7 @@ function sectionTitle(section: Section) {
     news: 'Новости',
     calendar: 'Календарь',
     contacts: 'Контакты',
+    members: 'Участники',
     archive: 'Архив',
     analytics: 'Аналитика',
     help: 'Справка',
@@ -92,14 +95,18 @@ export function App() {
         createdAt: item.createdAt,
       })),
     ...signals
-      .filter(signal => signal.status === 'input')
+      .filter(signal =>
+        signal.assigneeId === currentUser?.id &&
+        signal.status !== 'archived' &&
+        signal.status !== 'completed',
+      )
       .map(signal => ({
         id: `signal-${signal.id}`,
         kind: 'signal' as const,
         signalId: signal.id,
         title: signal.title,
-        meta: signal.source || signal.signalType || 'Новый сигнал',
-        createdAt: signal.createdAt,
+        meta: STATUS_LABELS[signal.status] || 'Назначено вам',
+        createdAt: signal.updatedAt,
       })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
@@ -147,7 +154,7 @@ export function App() {
       }
       // Ctrl+1-8: Navigate sections
       if (e.ctrlKey || e.metaKey) {
-        const sections: Section[] = ['kanban', 'inbox', 'news', 'calendar', 'contacts', 'archive', 'analytics', 'help']
+        const sections: Section[] = ['kanban', 'inbox', 'news', 'calendar', 'contacts', 'members', 'archive', 'analytics', 'help']
         const num = parseInt(e.key)
         if (num >= 1 && num <= sections.length) {
           e.preventDefault()
@@ -286,6 +293,7 @@ export function App() {
       case 'news': return <NewsFeedSection />
       case 'calendar': return <CalendarSection />
       case 'contacts': return <ContactsSection />
+      case 'members': return <MembersSection />
       case 'archive': return <ArchiveSection />
       case 'analytics': return <AnalyticsSection />
       case 'help': return <HelpSection />
@@ -414,7 +422,7 @@ export function App() {
                       <p className="text-sm font-bold truncate">{n.title}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${n.kind === 'inbox' ? 'bg-[#FF6B35]/10 text-[#FF6B35]' : 'bg-[#00C9A7]/10 text-[#00C9A7]'}`}>
-                          {n.kind === 'inbox' ? 'Входящее' : 'Сигнал'}
+                          {n.kind === 'inbox' ? 'Входящее' : 'Назначено вам'}
                         </span>
                         {n.meta && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--comic-tag-bg)] text-muted-foreground">{n.meta}</span>}
                       </div>
