@@ -6,7 +6,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params
   const body = await req.json()
   const data: Record<string, any> = {}
-  const allowedFields = ['title', 'description', 'date', 'endDate', 'location', 'type', 'status', 'organizerId']
+  const allowedFields = ['title', 'description', 'date', 'endDate', 'location', 'type', 'status', 'organizerId', 'responsible', 'tentative', 'dateText']
   for (const field of allowedFields) {
     if (field in body) {
       data[field] = field === 'date' || field === 'endDate' ? new Date(body[field]) : body[field]

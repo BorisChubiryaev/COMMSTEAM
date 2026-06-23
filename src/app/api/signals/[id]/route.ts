@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     'title', 'content', 'link', 'aiSummary', 'source', 'signalType',
     'relevance', 'alignment', 'urgency', 'potential', 'risks', 'priority',
     'meanings', 'distribution', 'publicationType', 'aiContent', 'launchDate',
-    'launchLocation', 'status',
+    'launchLocation', 'status', 'published', 'postLinks',
     'reach', 'engagement', 'mediaMentions', 'traffic', 'leads',
     'businessImpact', 'whatWorked', 'whatDidntWork', 'newInsights',
     'meaningMapUpdate', 'assigneeId',

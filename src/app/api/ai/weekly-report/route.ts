@@ -111,21 +111,30 @@ export async function POST(req: Request) {
     }
 
     // ── Deterministic blocks ─────────────────────────────────────────────────
+    // Display date: tentative events keep their rough date for sorting but show a
+    // free-text label ("Август ??"). responsible: portal member, else free text.
+    const evWho = (e: typeof eventsPast[number]) => e.organizer?.name || e.responsible || null
+    const evDate = (e: typeof eventsPast[number]) => (e.tentative && e.dateText ? e.dateText : fmtDate(e.date))
+
     const past = [
-      ...eventsPast.map(e => ({ date: e.date, title: e.title, responsible: e.organizer?.name || null })),
+      ...eventsPast.map(e => ({ date: e.date, dateLabel: evDate(e), title: e.title, responsible: evWho(e) })),
       ...signalsWindow.filter(s => s.launchDate && s.launchDate >= start && s.launchDate <= end)
-        .map(s => ({ date: s.launchDate as Date, title: s.title, responsible: s.assignee?.name || null })),
+        .map(s => ({ date: s.launchDate as Date, dateLabel: fmtDate(s.launchDate as Date), title: s.title, responsible: s.assignee?.name || null })),
     ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
     const ongoingList = ongoing.map(s => ({ title: s.title, assignee: s.assignee?.name || null }))
 
+    // A "post" is anything explicitly published, or any window signal carrying a link.
     const posts = signalsWindow
-      .filter(s => s.link)
-      .map(s => ({ title: s.title, link: s.link as string }))
+      .filter(s => s.published || s.link)
+      .map(s => ({
+        title: s.title,
+        links: (s.postLinks || s.link || '').split(/[\s,]+/).filter(Boolean),
+      }))
 
     const plans = [
-      ...eventsFuture.map(e => ({ date: e.date, title: e.title, responsible: e.organizer?.name || null })),
-      ...signalsFuture.map(s => ({ date: s.launchDate as Date, title: s.title, responsible: s.assignee?.name || null })),
+      ...eventsFuture.map(e => ({ date: e.date, dateLabel: evDate(e), title: e.title, responsible: evWho(e) })),
+      ...signalsFuture.map(s => ({ date: s.launchDate as Date, dateLabel: fmtDate(s.launchDate as Date), title: s.title, responsible: s.assignee?.name || null })),
     ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
     // ── Render plain text (email-ready) ──────────────────────────────────────
@@ -142,7 +151,7 @@ export async function POST(req: Request) {
 
     lines.push(`Итоги недели: ${fmtDate(start)}–${fmtDate(end)}`)
     if (past.length === 0) lines.push('— нет событий за период')
-    for (const p of past) lines.push(`${fmtDate(p.date)} — ${p.title}${p.responsible ? ` / ${p.responsible}` : ''}`)
+    for (const p of past) lines.push(`${p.dateLabel} — ${p.title}${p.responsible ? ` / ${p.responsible}` : ''}`)
     lines.push('')
 
     if (ongoingList.length > 0) {
@@ -153,7 +162,9 @@ export async function POST(req: Request) {
 
     if (posts.length > 0) {
       lines.push('Посты:')
-      for (const p of posts) lines.push(`+ ${p.title} — ${p.link}`)
+      for (const p of posts) {
+        lines.push(`+ ${p.title}${p.links.length ? ` — ${p.links.join(' ')}` : ''}`)
+      }
       lines.push('')
     }
 
@@ -163,7 +174,7 @@ export async function POST(req: Request) {
       for (const p of plans) {
         const month = fmtMonth(p.date)
         if (month !== currentMonth) { lines.push(`— ${month} —`); currentMonth = month }
-        lines.push(`${fmtDate(p.date)} — ${p.title}${p.responsible ? ` / ${p.responsible}` : ''}`)
+        lines.push(`${p.dateLabel} — ${p.title}${p.responsible ? ` / ${p.responsible}` : ''}`)
       }
       lines.push('')
     }

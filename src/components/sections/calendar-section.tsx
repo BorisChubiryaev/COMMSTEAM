@@ -307,6 +307,9 @@ function NewEventModal({ onClose, defaultDate }: { onClose: () => void; defaultD
   const [time, setTime] = useState('10:00')
   const [location, setLocation] = useState('')
   const [type, setType] = useState('Мероприятие')
+  const [responsible, setResponsible] = useState('')
+  const [tentative, setTentative] = useState(false)
+  const [dateText, setDateText] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -315,13 +318,16 @@ function NewEventModal({ onClose, defaultDate }: { onClose: () => void; defaultD
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title, 
-          description, 
-          date: new Date(`${date}T${time}`).toISOString(), 
-          location, 
-          type, 
-          status: 'planned' 
+        body: JSON.stringify({
+          title,
+          description,
+          date: new Date(`${date}T${time}`).toISOString(),
+          location,
+          type,
+          status: 'planned',
+          responsible: responsible || null,
+          tentative,
+          dateText: tentative ? (dateText || null) : null,
         }),
       })
       if (res.ok) {
@@ -352,6 +358,14 @@ function NewEventModal({ onClose, defaultDate }: { onClose: () => void; defaultD
             </div>
           </div>
           <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="📍 Место" />
+          <input type="text" value={responsible} onChange={e => setResponsible(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="🧑 Ответственный (для отчёта)" />
+          <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+            <input type="checkbox" checked={tentative} onChange={e => setTentative(e.target.checked)} className="w-4 h-4 accent-[#FF6B35]" />
+            Предварительная дата
+          </label>
+          {tentative && (
+            <input type="text" value={dateText} onChange={e => setDateText(e.target.value)} className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm bg-[var(--comic-input-bg)]" placeholder="Дата текстом, напр. «Август ??»" />
+          )}
           <div>
             <label className="text-[10px] font-bold block mb-1">Тип</label>
             <div className="flex flex-wrap gap-1">

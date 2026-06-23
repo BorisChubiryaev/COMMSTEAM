@@ -120,6 +120,8 @@ model Signal {
   // Launch
   publicationType  String?       // Посты в соцсетях, Статья, Пресс-релиз, Выступление, Внутренняя коммуникация, Мероприятие/Митап, Реклама
   aiContent        String?       // AI-generated content for publication
+  published        Boolean       @default(false) // вышло в публикацию (для блока «Посты» в отчёте)
+  postLinks        String?       // ссылки на площадки публикации (по строке на ссылку)
   launchDate       DateTime?     // Дата и время события/запуска
   launchLocation   String?       // Место события/запуска
   calendarEventId  String?       @unique
@@ -250,6 +252,9 @@ model Event {
   location    String?
   type        String?     // Мероприятие, Митап, Выступление, Встреча
   status      String      @default("planned") // planned, confirmed, completed, cancelled
+  responsible String?     // ответственный для отчёта (если не пользователь портала)
+  tentative   Boolean     @default(false) // предварительная/размытая дата
+  dateText    String?     // как показывать дату в отчёте, напр. «Август ??»
   organizerId String?
   organizer   TeamMember? @relation(fields: [organizerId], references: [id])
   contacts    Contact[]   @relation("EventContacts")

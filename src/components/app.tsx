@@ -1387,6 +1387,24 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
                   />
                 )}
               </div>
+              <div>
+                <label className="flex items-center gap-2 text-xs font-bold cursor-pointer mb-1">
+                  <input
+                    type="checkbox"
+                    checked={signal.published || false}
+                    onChange={e => handleFieldUpdate('published', e.target.checked)}
+                    className="w-4 h-4 accent-[#FF6B35]"
+                  />
+                  Опубликовано (попадёт в блок «Посты» отчёта)
+                </label>
+                <textarea
+                  value={signal.postLinks || ''}
+                  onChange={e => handleFieldUpdate('postLinks', e.target.value)}
+                  className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#FF6B35] bg-[var(--comic-input-bg)] text-foreground"
+                  rows={2}
+                  placeholder="Ссылки на площадки публикации (по одной в строке): ВК, ОК, ТГ, MAX…"
+                />
+              </div>
             </div>
           )}
 
