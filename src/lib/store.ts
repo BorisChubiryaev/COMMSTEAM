@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Section = 'kanban' | 'inbox' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'members' | 'help'
+export type Section = 'kanban' | 'inbox' | 'news' | 'calendar' | 'contacts' | 'archive' | 'analytics' | 'members' | 'knowledge' | 'help'
 
 export interface TeamMember {
   id: string

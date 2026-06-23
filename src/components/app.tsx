@@ -13,6 +13,7 @@ import { ArchiveSection } from '@/components/sections/archive-section'
 import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
 import { MembersSection } from '@/components/sections/members-section'
+import { KnowledgeSection } from '@/components/sections/knowledge-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
 import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, UsersRound, Archive, BarChart3, MapPin, LogOut } from 'lucide-react'
@@ -64,6 +65,7 @@ function sectionTitle(section: Section) {
     members: 'Участники',
     archive: 'Архив',
     analytics: 'Аналитика',
+    knowledge: 'Граф знаний',
     help: 'Справка',
   }
   return titles[section]
@@ -296,6 +298,7 @@ export function App() {
       case 'members': return <MembersSection />
       case 'archive': return <ArchiveSection />
       case 'analytics': return <AnalyticsSection />
+      case 'knowledge': return <KnowledgeSection />
       case 'help': return <HelpSection />
       default: return <KanbanBoard />
     }
@@ -489,7 +492,7 @@ export function App() {
       {/* Footer */}
       <footer className="hidden lg:block bg-[var(--sidebar)] text-gray-400 py-3 px-6 text-center text-sm relative" style={{ borderTop: '3px solid #FF6B35' }}>
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FF6B35] via-[#FFD166] to-[#00C9A7]" />
-        <p>⚡ CommsTeam Hub — Единое пространство команды коммуникации • Оцифровка процессов с ИИ • 2025</p>
+        <p>⚡ CommsTeam Hub — Единое пространство команды коммуникации • Оцифровка процессов с ИИ • 2026</p>
       </footer>
 
       {/* Signal Detail Modal */}

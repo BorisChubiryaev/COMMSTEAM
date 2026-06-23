@@ -15,6 +15,7 @@ import {
   X,
   Zap,
   Radio,
+  Network,
   HelpCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ const navItems = [
   { id: 'members' as const, icon: UsersRound, label: 'Участники', emoji: '🧑‍🤝‍🧑', color: '#22D3EE' },
   { id: 'archive' as const, icon: Archive, label: 'Архив', emoji: '📦', color: '#9CA3AF' },
   { id: 'analytics' as const, icon: BarChart3, label: 'Аналитика', emoji: '📊', color: '#FBBF24' },
+  { id: 'knowledge' as const, icon: Network, label: 'Граф знаний', emoji: '🧠', color: '#1D9E75' },
   { id: 'help' as const, icon: HelpCircle, label: 'Справка', emoji: '📖', color: '#FF3F8E' },
 ]
 

@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { syncEventKnowledge } from '@/lib/knowledge'
+import { after } from 'next/server'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -20,6 +22,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     data,
     include: { organizer: true, contacts: true },
   })
+  after(() => syncEventKnowledge(event.id))
   return Response.json(event)
 }
 

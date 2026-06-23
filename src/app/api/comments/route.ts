@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { recordCommentKnowledge } from '@/lib/knowledge'
+import { after } from 'next/server'
 
 export async function POST(req: Request) {
   const body = await req.json()
@@ -11,5 +13,8 @@ export async function POST(req: Request) {
     },
     include: { author: true },
   })
+  if (comment.signalId) {
+    after(() => recordCommentKnowledge(comment.authorId, comment.signalId!))
+  }
   return Response.json(comment)
 }

@@ -29,6 +29,63 @@ model TeamMember {
   collaborations Signal[] @relation("SignalCollaborators")
   comments  Comment[]
   events    Event[]
+
+  // Knowledge base / expertise
+  expertise             MemberExpertise[]
+  expertiseObservations ExpertiseObservation[]
+}
+
+// ── Knowledge base ───────────────────────────────────────────────────────────
+// The portal accumulates "who knows what" by observing real activity (signals
+// handled, events organised, comments) and rolling it up per member × topic.
+
+model Topic {
+  id           String                 @id @default(cuid())
+  key          String                 @unique // stable slug, e.g. "ai", "security"
+  label        String                 // human label, mirrors the meanings vocab
+  kind         String                 @default("meaning") // meaning, skill
+  expertise    MemberExpertise[]
+  observations ExpertiseObservation[]
+  createdAt    DateTime               @default(now())
+}
+
+// One atomic piece of evidence that a member knows a topic. Kept as a log so we
+// always know *why* the score is what it is (provenance). Derived from activity,
+// re-synced idempotently — never edited by hand.
+model ExpertiseObservation {
+  id         String     @id @default(cuid())
+  memberId   String
+  member     TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  topicId    String
+  topic      Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  sourceType String     // signal_assignee, signal_collaborator, event_organizer, comment
+  signalId   String? // loose reference (no FK) — cleanup handled by sync helpers
+  eventId    String?
+  weight     Float      @default(1)
+  occurredAt DateTime   @default(now())
+  createdAt  DateTime   @default(now())
+
+  @@index([memberId, topicId])
+  @@index([signalId])
+  @@index([eventId])
+}
+
+// Aggregated state per member × topic: this is what the graph and the
+// "who knows X" recommender read. Recomputed from observations.
+model MemberExpertise {
+  id             String     @id @default(cuid())
+  memberId       String
+  member         TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  topicId        String
+  topic          Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  score          Float      @default(0)
+  evidenceCount  Int        @default(0)
+  lastActivityAt DateTime?
+  aiSummary      String? // reserved for the future LLM summary pass
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([memberId, topicId])
+  @@index([topicId])
 }
 
 model Signal {

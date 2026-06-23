@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { notifyMember } from '@/lib/notify'
+import { syncSignalKnowledge, cleanupSignalKnowledge } from '@/lib/knowledge'
 import { SESSION_COOKIE, verifySession } from '@/lib/auth'
 import { after } from 'next/server'
 import { cookies } from 'next/headers'
@@ -166,6 +167,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  // Re-derive expertise: assignee/collaborator/meaning/status changes all matter.
+  after(() => syncSignalKnowledge(signal.id))
+
   return Response.json(signal)
 }
 
@@ -173,5 +177,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params
   await db.comment.deleteMany({ where: { signalId: id } })
   await db.signal.delete({ where: { id } })
+  after(() => cleanupSignalKnowledge(id))
   return Response.json({ success: true })
 }

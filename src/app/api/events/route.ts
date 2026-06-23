@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { syncEventKnowledge } from '@/lib/knowledge'
+import { after } from 'next/server'
 
 export async function GET() {
   const events = await db.event.findMany({
@@ -24,5 +26,6 @@ export async function POST(req: Request) {
     },
     include: { organizer: true, contacts: true },
   })
+  after(() => syncEventKnowledge(event.id))
   return Response.json(event)
 }

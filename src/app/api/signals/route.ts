@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { notifyMember } from '@/lib/notify'
+import { syncSignalKnowledge } from '@/lib/knowledge'
 import { SESSION_COOKIE, verifySession } from '@/lib/auth'
 import { after } from 'next/server'
 import { cookies } from 'next/headers'
@@ -70,6 +71,8 @@ export async function POST(req: Request) {
       `👤 Вам назначен сигнал: <b>${escapeHtml(signal.title)}</b>`,
     ))
   }
+
+  after(() => syncSignalKnowledge(signal.id))
 
   return Response.json(signal)
 }

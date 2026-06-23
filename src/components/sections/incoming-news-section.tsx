@@ -247,7 +247,7 @@ export function IncomingNewsSection() {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex sm:p-4 items-center gap-2 overflow-x-auto pb-1">
         {['new', 'converted', 'duplicate', 'ignored', 'all'].map(status => (
           <button
             key={status}
