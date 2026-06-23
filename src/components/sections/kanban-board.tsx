@@ -199,7 +199,7 @@ function GraphSignalPill({ signal, onClick }: { signal: Signal; onClick: () => v
           style={{ backgroundColor: PRIORITY_BG[signal.priority as keyof typeof PRIORITY_BG] || '#9CA3AF' }}
         />
         <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-bold leading-snug line-clamp-2">{signal.title}</span>
+          <span className="block text-[11px] font-bold leading-snug line-clamp-1">{signal.title}</span>
           <span className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground">
             {signal.signalType && <span className="truncate">{signal.signalType}</span>}
             {signal.source && (
@@ -229,8 +229,8 @@ function KanbanGraphView({
   }))
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="relative min-h-[640px] min-w-[1040px] rounded-xl border-2 border-[var(--comic-border-color)] bg-[var(--comic-column-bg)] overflow-hidden">
+    <div className="flex-1 min-h-0 overflow-auto">
+      <div className="relative min-h-[640px] min-w-[1040px] rounded-xl border-2 border-[var(--comic-border-color)] bg-[var(--comic-column-bg)]">
         <div className="absolute inset-0 benday-dots opacity-[0.22]" />
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {graphNodes.slice(0, -1).map((node, index) => {
@@ -257,7 +257,7 @@ function KanbanGraphView({
         </svg>
 
         {graphNodes.map((node) => {
-          const visibleSignals = node.signals.slice(0, 3)
+          const visibleSignals = node.signals.slice(0, 2)
           const hiddenCount = node.signals.length - visibleSignals.length
 
           return (
@@ -399,7 +399,7 @@ export function KanbanBoard() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-full flex flex-col min-h-0">
+      <div className="md:h-full flex flex-col min-h-0">
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-3 mb-4">
           <div className="flex items-center gap-1.5 sm:gap-2 bg-card comic-border comic-shadow-sm px-2 sm:px-3 py-1.5 min-w-0">
@@ -552,7 +552,7 @@ export function KanbanBoard() {
         ) : (
           /* Kanban columns */
           <>
-          <div className="md:hidden flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="md:hidden">
             <div className="rounded-xl border-2 border-[var(--comic-border-color)] bg-[var(--comic-column-bg)]">
               <div className="sticky top-0 z-10 rounded-t-lg border-b-2 border-[var(--comic-border-color)] px-3 py-2.5" style={{ backgroundColor: mobileColumn.color + '18' }}>
                 <div className="flex items-center gap-2">

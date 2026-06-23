@@ -322,7 +322,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-[100dvh] md:h-[100dvh] flex flex-col bg-background md:overflow-hidden">
       {/* Top Header Bar */}
       <header className="h-14 bg-card flex items-center px-3 sm:px-4 gap-2 sm:gap-3 z-30 comic-shadow-sm relative overflow-hidden sticky top-0" style={{ borderBottom: '3px solid var(--comic-border-color)' }}>
         {/* Decorative speed lines in header */}
@@ -442,9 +442,9 @@ export function App() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 md:overflow-hidden md:min-h-0">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-24 lg:pb-6">
+        <main className="flex-1 min-w-0 md:min-h-0 md:overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-6 pb-24 lg:pb-6">
           {renderSection()}
         </main>
       </div>
