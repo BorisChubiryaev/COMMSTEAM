@@ -30,6 +30,7 @@ import {
 
 const SECTIONS = [
   { id: 'about', label: 'О проекте', icon: BookOpen, color: '#FF6B35' },
+  { id: 'access', label: 'Вход и уведомления', icon: Shield, color: '#229ED9' },
   { id: 'quickstart', label: 'Быстрый старт', icon: Rocket, color: '#00C9A7' },
   { id: 'workflow', label: 'Рабочий процесс', icon: Workflow, color: '#A78BFA' },
   { id: 'features', label: 'Возможности', icon: Sparkles, color: '#FBBF24' },
@@ -150,12 +151,13 @@ export function HelpSection() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                  <strong>CommsTeam Hub</strong> — это веб-приложение для оцифровки рабочих процессов команды коммуникации.
-                  Оно объединяет все этапы обработки новостей и сигналов: от первичного поступления до измерения результатов и обратной связи.
-                  ИИ-помощник на базе Google Gemini помогает генерировать саммари, создавать контент и анализировать периоды.
+                  <strong>CommsTeam Hub</strong> — веб-приложение для оцифровки работы команды коммуникаций.
+                  Оно объединяет все этапы обработки новостей и сигналов: от поступления до измерения результатов и обратной связи.
+                  Вход — через Telegram (по коду от бота), доступ только участникам командного чата. Telegram-бот принимает новости,
+                  делает AI-разбор и шлёт уведомления. ИИ на базе OpenRouter (Gemini) генерирует саммари, контент и аналитику.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {['Next.js 16', 'TypeScript', 'Tailwind CSS', 'Prisma + SQLite', 'OpenRouter AI', 'Zustand'].map(tag => (
+                  {['Next.js 16', 'TypeScript', 'Tailwind CSS', 'Prisma + PostgreSQL', 'OpenRouter AI', 'Telegram-вход', 'Vercel'].map(tag => (
                     <span key={tag} className="text-[10px] px-2.5 py-1 rounded-lg bg-[#FF6B35]/10 text-[#FF6B35] font-bold border border-[#FF6B35]/20">
                       {tag}
                     </span>
@@ -182,6 +184,74 @@ export function HelpSection() {
           </div>
         )
 
+      case 'access':
+        return (
+          <div className="space-y-5">
+            <div className="bg-[var(--comic-bg)] comic-border comic-shadow p-5">
+              <h3 className="comic-title text-lg text-[#229ED9] mb-2 flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Как войти
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Доступ — только для участников командного Telegram-чата. Логина по паролю нет.
+              </p>
+              <div className="space-y-0">
+                <StepCard step={1} title="Откройте бота" color="#229ED9">
+                  <p className="text-xs">Напишите боту команды (кнопка на экране входа ведёт прямо в чат с ним).</p>
+                </StepCard>
+                <StepCard step={2} title="Отправьте /login" color="#34D399">
+                  <p className="text-xs">Бот проверит, что вы состоите в командном чате, и пришлёт 6-значный код (действует 10 минут).</p>
+                </StepCard>
+                <StepCard step={3} title="Введите код" color="#FF6B35">
+                  <p className="text-xs">Впишите код на экране входа — вы внутри. Ваш аккаунт автоматически появляется во вкладке «Участники».</p>
+                </StepCard>
+              </div>
+            </div>
+
+            <div className="bg-[var(--comic-bg)] comic-border comic-shadow p-5">
+              <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-[#229ED9]" />
+                Уведомления — 3 канала
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { icon: '🔔', t: 'Колокольчик в приложении', d: 'Лично вам: задачи, назначенные на вас, и новые входящие. Счётчик — непрочитанное.' },
+                  { icon: '💬', t: 'Telegram в личке', d: 'Когда вам назначают сигнал — бот пишет в ЛС.' },
+                  { icon: '👥', t: 'Командный чат', d: 'Лента новых входящих (с кнопками «В канбан»/«Игнор») и напоминания о запусках за 24 часа.' },
+                ].map(({ icon, t, d }) => (
+                  <div key={t} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--comic-bg-hover)] border border-[var(--comic-border-color)]/20">
+                    <span className="text-xl flex-shrink-0">{icon}</span>
+                    <div>
+                      <h4 className="text-sm font-bold">{t}</h4>
+                      <p className="text-xs text-muted-foreground">{d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-[var(--comic-bg)] comic-border comic-shadow p-5">
+              <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
+                <Terminal className="w-4 h-4" />
+                Команды бота
+              </h3>
+              <div className="space-y-2">
+                {[
+                  { cmd: '/login', d: 'Получить код для входа на сайт' },
+                  { cmd: '/list', d: 'Последние входящие' },
+                  { cmd: '/help', d: 'Справка по боту' },
+                  { cmd: 'ссылка / текст', d: 'Прислать новость — бот сохранит её во «Входящие» и сделает AI-разбор' },
+                ].map(({ cmd, d }) => (
+                  <div key={cmd} className="flex items-center gap-3 p-2 rounded-lg bg-[var(--comic-bg-hover)] border border-[var(--comic-border-color)]/20">
+                    <code className="text-xs font-mono bg-[#1a1a2e] text-white px-2 py-1 rounded flex-shrink-0">{cmd}</code>
+                    <span className="text-xs text-muted-foreground">{d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+
       case 'quickstart':
         return (
           <div className="space-y-5">
@@ -197,17 +267,15 @@ export function HelpSection() {
                   <p className="text-xs text-muted-foreground mt-1">Используется npm, он устанавливается вместе с Node.js</p>
                 </StepCard>
 
-                <StepCard step={2} title="Настройте базу данных" color="#60A5FA">
-                  <CodeBlock code={`# Применить схему Prisma к SQLite базе\nnpm run db:push\n\n# Сгенерировать Prisma Client\nnpm run db:generate`} />
-                  <p className="text-xs text-muted-foreground mt-1">База данных SQLite создаётся автоматически в <code className="bg-[var(--comic-tag-bg)] px-1 rounded text-[10px]">db/custom.db</code></p>
+                <StepCard step={2} title="Настройте базу данных (PostgreSQL)" color="#60A5FA">
+                  <CodeBlock code={`# Применить схему к Postgres (Neon)\nnpm run db:push\n\n# Сгенерировать Prisma Client\nnpm run db:generate`} />
+                  <p className="text-xs text-muted-foreground mt-1">Боевая БД — Neon Postgres; строка подключения в <code className="bg-[var(--comic-tag-bg)] px-1 rounded text-[10px]">.env.local</code>. После изменения схемы перезапустите dev-сервер.</p>
                 </StepCard>
 
                 <StepCard step={3} title="Настройте переменные окружения" color="#FBBF24">
-                  <p className="text-xs mb-2">Создайте файл <code className="bg-[var(--comic-tag-bg)] px-1 rounded">.env</code> в корне проекта:</p>
-                  <CodeBlock code={`# База данных SQLite\nDATABASE_URL="file:../db/custom.db"\n\n# OpenRouter API ключ (для ИИ-функций)\nOPENROUTER_API_KEY="sk-or-v1-ваш-ключ"\n\n# Модель ИИ\nAI_MODEL="google/gemini-2.5-flash"`} lang="env" />
+                  <p className="text-xs mb-2">Заполните <code className="bg-[var(--comic-tag-bg)] px-1 rounded">.env</code> — полный список см. в разделе «Переменные окружения».</p>
                   <div className="bg-[#FF6B35]/5 border border-[#FF6B35]/20 rounded-lg p-3 mt-2">
-                    <p className="text-xs text-[#FF6B35] font-bold">⚠️ Без OPENROUTER_API_KEY ИИ-функции работать не будут</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Получить ключ можно на <a href="https://openrouter.ai/keys" target="_blank" className="text-[#00C9A7] underline">openrouter.ai/keys</a></p>
+                    <p className="text-xs text-[#FF6B35] font-bold">⚠️ Минимум для работы: DATABASE_URL, AUTH_SECRET, TELEGRAM_BOT_TOKEN, TELEGRAM_NOTIFY_CHAT_ID, OPENROUTER_API_KEY</p>
                   </div>
                 </StepCard>
 
@@ -221,15 +289,8 @@ export function HelpSection() {
                   </p>
                 </StepCard>
 
-                <StepCard step={5} title="Заполните тестовыми данными" color="#4ECB71">
-                  <p className="text-xs mb-2">При первом открытии приложение автоматически заполнит БД тестовыми данными через POST <code className="bg-[var(--comic-tag-bg)] px-1 rounded">/api/seed</code>:</p>
-                  <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>4 участника команды</li>
-                    <li>5 сигналов на разных стадиях обработки</li>
-                    <li>3 события в календаре</li>
-                    <li>3 контакта</li>
-                  </ul>
-                  <div className="text-xs text-muted-foreground mt-2">Или вручную: <CodeBlock code={`curl -X POST http://localhost:3000/api/seed`} /></div>
+                <StepCard step={5} title="Войдите через Telegram" color="#229ED9">
+                  <p className="text-xs">Откройте приложение, напишите боту <code className="bg-[var(--comic-tag-bg)] px-1 rounded">/login</code>, введите код. Демо-данных нет — участники появляются после входа. Подробнее в разделе «Вход и уведомления».</p>
                 </StepCard>
 
                 <StepCard step={6} title="Готово!" color="#A78BFA">
@@ -399,6 +460,21 @@ export function HelpSection() {
                   desc: 'Интеграция с Google Gemini через OpenRouter',
                   features: ['Автоматическое саммари новости', 'Генерация контента для публикации', 'Периодное саммари по сигналам', 'Подсказки по оценке и смыслам'],
                 },
+                {
+                  icon: '✈️', title: 'Telegram-бот', color: '#229ED9',
+                  desc: 'Приём новостей и уведомления',
+                  features: ['Пришлите ссылку/текст — попадёт во «Входящие»', 'AI-разбор с кнопками «В канбан»/«Игнор»', 'Лента входящих в командный чат', 'Команды /login, /list'],
+                },
+                {
+                  icon: '🔑', title: 'Вход и участники', color: '#34D399',
+                  desc: 'Доступ только для командного чата',
+                  features: ['Вход по коду из Telegram (/login)', 'Вкладка «Участники» со списком', 'Фильтр «Мои задачи» на канбане', 'Авто-онбординг при первом входе'],
+                },
+                {
+                  icon: '🔔', title: 'Уведомления', color: '#FF3F8E',
+                  desc: 'Три канала оповещений',
+                  features: ['Колокольчик: назначенное вам + входящие', 'ЛС в Telegram при назначении', 'Командный чат: входящие + дедлайны', 'Напоминания о запусках за 24ч'],
+                },
               ].map(({ icon, title, color, desc, features }) => (
                 <div key={title} className="bg-[var(--comic-bg)] comic-border comic-shadow-sm p-4 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[60px]" style={{ backgroundColor: color + '08' }} />
@@ -438,41 +514,42 @@ export function HelpSection() {
 │   │   ├── layout.tsx          # Root layout (шрифты, Toaster)
 │   │   ├── globals.css         # Глобальные стили + comic-theme
 │   │   └── api/                # API маршруты
-│   │       ├── signals/        # CRUD сигналов
+│   │       ├── auth/           # Вход (login-code, me, logout)
+│   │       ├── signals/        # CRUD сигналов (+ уведомления о назначении)
+│   │       ├── incoming-news/  # Входящие (+ analyze, convert)
 │   │       ├── events/         # CRUD событий
 │   │       ├── contacts/       # CRUD контактов
 │   │       ├── team/           # Участники команды
 │   │       ├── comments/       # Комментарии
 │   │       ├── summaries/      # Периодные саммари
-│   │       ├── seed/           # Заполнение тестовыми данными
+│   │       ├── cron/           # Напоминания о запусках
+│   │       ├── integrations/   # telegram/webhook (бот)
 │   │       └── ai/             # ИИ-эндпоинты
 │   │           ├── summary/            # Саммари новости
 │   │           ├── generate-content/   # Генерация контента
 │   │           └── period-summary/     # Саммари за период
 │   ├── components/
-│   │   ├── app.tsx             # Главный компонент приложения
+│   │   ├── app.tsx             # Оболочка SPA, шапка, колокольчик, авторизация
 │   │   ├── sidebar.tsx         # Боковая навигация
-│   │   ├── sections/           # Секции приложения
-│   │   │   ├── kanban-board.tsx
-│   │   │   ├── calendar-section.tsx
-│   │   │   ├── contacts-section.tsx
-│   │   │   ├── archive-section.tsx
-│   │   │   ├── analytics-section.tsx
-│   │   │   └── help-section.tsx
+│   │   ├── login-screen.tsx    # Экран входа по коду
+│   │   ├── sections/           # Секции: kanban, incoming-news, news-feed,
+│   │   │   │                   #   calendar, contacts, members, archive,
+│   │   │   └── ...             #   analytics, help
 │   │   └── ui/                 # shadcn/ui компоненты
 │   ├── lib/
-│   │   ├── store.ts            # Zustand store + константы
+│   │   ├── store.ts            # Zustand store + справочники
+│   │   ├── auth.ts             # Сессия + проверка Telegram
+│   │   ├── telegram.ts         # Клиент Bot API
+│   │   ├── notify.ts           # Уведомления (ЛС / командный чат)
+│   │   ├── signal-analysis.ts  # AI-разбор сигналов
 │   │   ├── db.ts               # Prisma клиент
-│   │   └── utils.ts            # Утилиты
-│   └── hooks/                  # Кастомные хуки
-├── prisma/
-│   └── schema.prisma           # Схема базы данных
-├── db/
-│   └── custom.db               # SQLite база данных
-├── public/                     # Статические файлы
-├── .env                        # Переменные окружения
-├── Caddyfile                   # Конфигурация шлюза
-└── package.json                # Зависимости и скрипты`} lang="text" />
+│   │   └── utils.ts
+│   ├── middleware.ts           # Защита /api/* сессией
+│   └── hooks/
+├── prisma/schema.prisma        # Схема (PostgreSQL)
+├── vercel.json                 # Cron-задания
+├── CLAUDE.md                   # Гид для ИИ-агента
+└── package.json`} lang="text" />
             </div>
 
             {/* Tech stack */}
@@ -488,11 +565,12 @@ export function HelpSection() {
                   { name: 'Tailwind CSS 4', desc: 'Utility-first CSS', category: 'Фронтенд' },
                   { name: 'shadcn/ui', desc: 'Компоненты на Radix UI', category: 'Фронтенд' },
                   { name: 'Zustand', desc: 'Управление состоянием', category: 'Фронтенд' },
-                  { name: 'Prisma', desc: 'ORM для SQLite', category: 'Бэкенд' },
-                  { name: 'SQLite', desc: 'Встроенная база данных', category: 'Бэкенд' },
+                  { name: 'Prisma', desc: 'ORM для PostgreSQL', category: 'Бэкенд' },
+                  { name: 'PostgreSQL (Neon)', desc: 'Облачная база данных', category: 'Бэкенд' },
+                  { name: 'Telegram Bot API', desc: 'Вход, приём новостей, уведомления', category: 'Интеграции' },
                   { name: 'OpenRouter', desc: 'API для ИИ-моделей', category: 'ИИ' },
                   { name: 'Google Gemini', desc: 'ИИ-модель для генерации', category: 'ИИ' },
-                  { name: 'Caddy', desc: 'HTTP-шлюз и реверс-прокси', category: 'Инфра' },
+                  { name: 'Vercel', desc: 'Хостинг + Cron', category: 'Инфра' },
                 ].map(({ name, desc, category }) => (
                   <div key={name} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--comic-bg-hover)] border border-[var(--comic-border-color)]/20">
                     <div className="flex-1 min-w-0">
@@ -517,22 +595,22 @@ export function HelpSection() {
                 <Key className="w-5 h-5" />
                 Переменные окружения (.env)
               </h3>
-              <CodeBlock code={`# === БАЗА ДАННЫХ ===
-# Путь к SQLite базе данных (обязательная)
-DATABASE_URL="file:../db/custom.db"
+              <CodeBlock code={`# === БАЗА ДАННЫХ (PostgreSQL / Neon) ===
+DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require"
 
 # === ИИ (OpenRouter) ===
-# API ключ OpenRouter (обязательная для ИИ-функций)
-# Получить: https://openrouter.ai/keys
-OPENROUTER_API_KEY="sk-or-v1-ваш-ключ-здесь"
-
-# Модель ИИ (по умолчанию: google/gemini-2.5-flash)
+OPENROUTER_API_KEY="sk-or-v1-ваш-ключ"   # openrouter.ai/keys
 AI_MODEL="google/gemini-2.5-flash"
 
-# Дополнительные модели:
-#   google/gemini-2.5-flash      — быстрая универсальная модель
-#   anthropic/claude-3.5-sonnet  — качественная, дороже
-#   openai/gpt-4o-mini           — быстрая OpenAI`} lang="env" />
+# === TELEGRAM (бот, вход, уведомления) ===
+TELEGRAM_BOT_TOKEN="123456:ABC..."        # от @BotFather
+TELEGRAM_WEBHOOK_SECRET="строка"          # проверка вебхука
+TELEGRAM_NOTIFY_CHAT_ID="-100..."         # id командного чата (бот должен быть в нём)
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="comm_steam_test_bot"
+
+# === СЕССИИ И CRON ===
+AUTH_SECRET="случайная-длинная-строка"    # подпись cookie сессии
+CRON_SECRET="случайная-строка"            # защита /api/cron/*`} lang="env" />
             </div>
 
             <div className="bg-[#FF6B35]/5 border-2 border-[#FF6B35]/20 rounded-xl p-4">
@@ -563,7 +641,7 @@ AI_MODEL="google/gemini-2.5-flash"
                 <Globe className="w-5 h-5" />
                 API маршруты
               </h3>
-              <p className="text-xs text-muted-foreground mb-4">Все API-эндпоинты доступны по относительному пути от корня приложения</p>
+              <p className="text-xs text-muted-foreground mb-4">Все <code className="bg-[var(--comic-tag-bg)] px-1 rounded">/api/*</code> защищены сессией (middleware → 401 без входа). Исключения: вход <code className="bg-[var(--comic-tag-bg)] px-1 rounded">/api/auth/*</code>, вебхук бота и <code className="bg-[var(--comic-tag-bg)] px-1 rounded">/api/cron/*</code> (со своими секретами).</p>
             </div>
 
             {[
@@ -604,8 +682,24 @@ AI_MODEL="google/gemini-2.5-flash"
                 detail: 'Body: { name, company?, role?, email?, phone?, telegram?, tags? }',
               },
               {
-                method: 'GET', path: '/api/team', desc: 'Получить участников команды', color: '#4ECB71',
-                detail: 'Возвращает массив всех участников',
+                method: 'GET', path: '/api/team', desc: 'Участники команды', color: '#4ECB71',
+                detail: 'Безопасные поля (без кода входа): id, name, avatar, role, email, telegramUsername',
+              },
+              {
+                method: 'GET', path: '/api/auth/me', desc: 'Текущий пользователь сессии', color: '#229ED9',
+                detail: '401 если не авторизован. Также: POST /api/auth/login-code (вход по коду), POST /api/auth/logout',
+              },
+              {
+                method: 'POST', path: '/api/integrations/telegram/webhook', desc: 'Вебхук Telegram-бота', color: '#229ED9',
+                detail: 'Новости, команды (/login,/list), кнопки (callback). Защищён secret-заголовком',
+              },
+              {
+                method: 'GET', path: '/api/incoming-news', desc: 'Входящие новости', color: '#4ECB71',
+                detail: '+ /[id]/analyze (AI-разбор), /[id]/convert (в сигнал). Источники: telegram, manual, parser',
+              },
+              {
+                method: 'GET', path: '/api/cron/launch-reminders', desc: 'Напоминания о запусках', color: '#F59E0B',
+                detail: 'Vercel Cron. Постит в командный чат сигналы с запуском в ближайшие 24ч. Защищён CRON_SECRET',
               },
               {
                 method: 'POST', path: '/api/comments', desc: 'Создать комментарий', color: '#FF6B35',
@@ -622,10 +716,6 @@ AI_MODEL="google/gemini-2.5-flash"
               {
                 method: 'POST', path: '/api/ai/period-summary', desc: 'ИИ-саммари за период', color: '#A78BFA',
                 detail: 'Body: { periodStart, periodEnd }. Возвращает { summary: string }',
-              },
-              {
-                method: 'POST', path: '/api/seed', desc: 'Заполнить тестовыми данными', color: '#FF6B35',
-                detail: 'Создаёт 4 участников, 5 сигналов, 3 события, 3 контакта (если БД пуста)',
               },
             ].map(({ method, path, desc, color, detail }) => (
               <div key={method + path} className="bg-[var(--comic-bg)] comic-border comic-shadow-sm p-3 flex items-start gap-3">
@@ -657,9 +747,14 @@ AI_MODEL="google/gemini-2.5-flash"
                 icon: '⏳',
               },
               {
-                q: 'Как сбросить базу данных?',
-                a: 'Удалите файл db/custom.db и выполните: npm run db:push, затем откройте приложение (автоматически запустится seed).',
-                icon: '🔄',
+                q: 'Как войти в приложение?',
+                a: 'Напишите Telegram-боту команды /login — он проверит, что вы в командном чате, и пришлёт 6-значный код. Введите код на экране входа. Доступ только участникам командного чата.',
+                icon: '🔑',
+              },
+              {
+                q: 'Почему не приходят уведомления?',
+                a: 'Уведомления привязаны к событиям. В ЛС бот пишет, когда вам НАЗНАЧИЛИ сигнал. В командный чат падают новые входящие и напоминания о запусках за 24ч. Колокольчик в приложении показывает назначенное на вас + новые входящие. Если тишина — значит событий не было.',
+                icon: '🔔',
               },
               {
                 q: 'ИИ-функции не работают. Что делать?',
@@ -668,7 +763,7 @@ AI_MODEL="google/gemini-2.5-flash"
               },
               {
                 q: 'Как добавить нового участника команды?',
-                a: 'В боковой панели нажмите на участника, чтобы переключиться на него. Для добавления нового участника нужно использовать API: POST /api/team с { name, role?, email? }',
+                a: 'Добавьте человека в командный Telegram-чат — после этого он сможет войти через /login, и его аккаунт автоматически появится во вкладке «Участники». Вручную создавать участников не нужно.',
                 icon: '👤',
               },
               {
@@ -711,7 +806,7 @@ AI_MODEL="google/gemini-2.5-flash"
   }
 
   return (
-    <div className="h-full flex flex-col md:flex-row gap-4 overflow-hidden">
+    <div className="md:h-full flex flex-col md:flex-row gap-4 md:overflow-hidden">
       {/* Sidebar navigation */}
       <div className="md:w-48 flex-shrink-0 flex md:block gap-2 md:space-y-1 overflow-x-auto md:overflow-y-auto custom-scrollbar pb-1 md:pb-0">
         {SECTIONS.map(({ id, label, icon: Icon, color }) => (
@@ -737,7 +832,7 @@ AI_MODEL="google/gemini-2.5-flash"
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar md:pr-2 min-h-0">
+      <div className="flex-1 md:overflow-y-auto custom-scrollbar md:pr-2 md:min-h-0">
         {renderContent()}
       </div>
     </div>
