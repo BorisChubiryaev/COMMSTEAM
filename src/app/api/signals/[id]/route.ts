@@ -1,9 +1,17 @@
 import { db } from '@/lib/db'
 import { notifyMember } from '@/lib/notify'
+import { SESSION_COOKIE, verifySession } from '@/lib/auth'
 import { after } from 'next/server'
+import { cookies } from 'next/headers'
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+async function getActorId() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value
+  const session = await verifySession(token)
+  return session?.sub ?? null
 }
 
 function eventTypeFromPublicationType(publicationType: string | null) {
@@ -68,7 +76,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const existing = await db.signal.findUnique({
     where: { id },
-    select: { calendarEventId: true, assigneeId: true },
+    select: {
+      calendarEventId: true,
+      assigneeId: true,
+      collaborators: { select: { id: true } },
+    },
   })
 
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -128,13 +140,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     })
   }, { timeout: 15000 })
 
-  // Notify the team when the assignee changes to a new person.
+  const actorId = await getActorId()
+
+  // Notify when the assignee changes to a new person — unless they assigned it
+  // to themselves (self-pings are noise).
   const assigneeChanged = 'assigneeId' in body && body.assigneeId && body.assigneeId !== existing.assigneeId
-  if (assigneeChanged && signal.assignee) {
+  if (assigneeChanged && signal.assignee && signal.assignee.id !== actorId) {
     after(() => notifyMember(
       signal.assignee,
       `👤 Вам назначен сигнал: <b>${escapeHtml(signal.title)}</b>`,
     ))
+  }
+
+  // Notify colleagues newly attached to the task — but not the actor themselves.
+  if ('collaboratorIds' in body) {
+    const prevIds = new Set(existing.collaborators.map((member) => member.id))
+    const addedCollaborators = signal.collaborators.filter(
+      (member) => !prevIds.has(member.id) && member.id !== actorId,
+    )
+    for (const member of addedCollaborators) {
+      after(() => notifyMember(
+        member,
+        `🤝 Вас привлекли к задаче: <b>${escapeHtml(signal.title)}</b>`,
+      ))
+    }
   }
 
   return Response.json(signal)

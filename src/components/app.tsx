@@ -392,7 +392,7 @@ export function App() {
             )}
           </Button>
           {showNotifications && (
-            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-80 bg-card comic-border comic-shadow-lg z-50 comic-pop">
+            <div className="fixed left-3 right-3 top-16 sm:left-auto sm:right-4 sm:top-14 sm:w-80 bg-card comic-border comic-shadow-lg z-50 comic-pop">
               <div className="p-3 border-b-2 border-[var(--comic-border-color)] flex items-center justify-between">
                 <h3 className="text-sm font-bold flex items-center gap-2">
                   <span className="comic-action-word text-[#FF3F8E] text-base">BOOM!</span>
@@ -702,8 +702,6 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
   const { selectedSignalId, signals, updateSignal, setSignals, setEvents, contacts, teamMembers, currentUser } = useAppStore()
   const signal = signals.find(s => s.id === selectedSignalId)
   const [comment, setComment] = useState('')
-  const [contactToAdd, setContactToAdd] = useState('')
-  const [collaboratorToAdd, setCollaboratorToAdd] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [aiContentLoading, setAiContentLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -807,13 +805,11 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
   }
 
   const handleSignalContactsChange = async (contactIds: string[]) => {
-    const updated = await handleFieldUpdate('contactIds', contactIds)
-    if (updated) setContactToAdd('')
+    await handleFieldUpdate('contactIds', contactIds)
   }
 
   const handleCollaboratorsChange = async (memberIds: string[]) => {
-    const updated = await handleFieldUpdate('collaboratorIds', memberIds)
-    if (updated) setCollaboratorToAdd('')
+    await handleFieldUpdate('collaboratorIds', memberIds)
   }
 
   const handleAutoLinkContacts = async () => {
@@ -1080,30 +1076,23 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold mb-1">Контакты, которые участвуют или фигурируют</label>
-                <div className="flex gap-2">
-                  <select
-                    value={contactToAdd}
-                    onChange={e => setContactToAdd(e.target.value)}
-                    className="min-w-0 flex-1 p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#3B82F6] bg-[var(--comic-input-bg)] text-foreground"
-                  >
-                    <option value="">Выберите контакт...</option>
-                    {contacts
-                      .filter(contact => !(signal.contacts || []).some(linked => linked.id === contact.id))
-                      .map(contact => (
-                        <option key={contact.id} value={contact.id}>
-                          {contact.name}{contact.company ? ` · ${contact.company}` : ''}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!contactToAdd}
-                    onClick={() => handleSignalContactsChange([...(signal.contacts || []).map(contact => contact.id), contactToAdd])}
-                    className="comic-btn bg-[#3B82F6] text-white px-3 py-2 text-xs disabled:opacity-50"
-                  >
-                    +
-                  </button>
-                </div>
+                <select
+                  value=""
+                  onChange={e => {
+                    const id = e.target.value
+                    if (id) handleSignalContactsChange([...(signal.contacts || []).map(contact => contact.id), id])
+                  }}
+                  className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#3B82F6] bg-[var(--comic-input-bg)] text-foreground"
+                >
+                  <option value="">Добавить контакт...</option>
+                  {contacts
+                    .filter(contact => !(signal.contacts || []).some(linked => linked.id === contact.id))
+                    .map(contact => (
+                      <option key={contact.id} value={contact.id}>
+                        {contact.name}{contact.company ? ` · ${contact.company}` : ''}
+                      </option>
+                    ))}
+                </select>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(signal.contacts || []).length === 0 ? (
                     <span className="text-xs text-muted-foreground italic">Пока нет связанных контактов</span>
@@ -1124,32 +1113,41 @@ function SignalDetailModal({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
 
               <div>
+                <label className="block text-xs font-bold mb-1">👤 Исполнитель</label>
+                <select
+                  value={signal.assigneeId || ''}
+                  onChange={e => handleFieldUpdate('assigneeId', e.target.value || null)}
+                  className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#FF6B35] bg-[var(--comic-input-bg)] text-foreground"
+                >
+                  <option value="">Не назначен</option>
+                  {teamMembers.map(member => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}{member.role ? ` · ${member.role}` : ''}{member.id === currentUser?.id ? ' (вы)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold mb-1">Коллеги, привлеченные к задаче</label>
-                <div className="flex gap-2">
-                  <select
-                    value={collaboratorToAdd}
-                    onChange={e => setCollaboratorToAdd(e.target.value)}
-                    className="min-w-0 flex-1 p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#00C9A7] bg-[var(--comic-input-bg)] text-foreground"
-                  >
-                    <option value="">Выберите коллегу...</option>
-                    {teamMembers
-                      .filter(member => member.id !== signal.assigneeId)
-                      .filter(member => !(signal.collaborators || []).some(linked => linked.id === member.id))
-                      .map(member => (
-                        <option key={member.id} value={member.id}>
-                          {member.name}{member.role ? ` · ${member.role}` : ''}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!collaboratorToAdd}
-                    onClick={() => handleCollaboratorsChange([...(signal.collaborators || []).map(member => member.id), collaboratorToAdd])}
-                    className="comic-btn bg-[#00C9A7] text-white px-3 py-2 text-xs disabled:opacity-50"
-                  >
-                    +
-                  </button>
-                </div>
+                <select
+                  value=""
+                  onChange={e => {
+                    const id = e.target.value
+                    if (id) handleCollaboratorsChange([...(signal.collaborators || []).map(member => member.id), id])
+                  }}
+                  className="w-full p-2 border-2 border-[var(--comic-border-color)] rounded-lg text-sm focus:outline-none focus:border-[#00C9A7] bg-[var(--comic-input-bg)] text-foreground"
+                >
+                  <option value="">Добавить коллегу...</option>
+                  {teamMembers
+                    .filter(member => member.id !== signal.assigneeId)
+                    .filter(member => !(signal.collaborators || []).some(linked => linked.id === member.id))
+                    .map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}{member.role ? ` · ${member.role}` : ''}
+                      </option>
+                    ))}
+                </select>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(signal.collaborators || []).length === 0 ? (
                     <span className="text-xs text-muted-foreground italic">Пока никто дополнительно не привлечен</span>

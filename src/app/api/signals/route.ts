@@ -1,9 +1,17 @@
 import { db } from '@/lib/db'
 import { notifyMember } from '@/lib/notify'
+import { SESSION_COOKIE, verifySession } from '@/lib/auth'
 import { after } from 'next/server'
+import { cookies } from 'next/headers'
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+async function getActorId() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value
+  const session = await verifySession(token)
+  return session?.sub ?? null
 }
 
 export async function GET(req: Request) {
@@ -53,7 +61,10 @@ export async function POST(req: Request) {
     },
   })
 
-  if (signal.assignee) {
+  // Notify the assignee — but not when they assigned the signal to themselves
+  // (the creator is the assignee here), since self-pings are just noise.
+  const actorId = await getActorId()
+  if (signal.assignee && signal.assignee.id !== actorId) {
     after(() => notifyMember(
       signal.assignee,
       `👤 Вам назначен сигнал: <b>${escapeHtml(signal.title)}</b>`,
