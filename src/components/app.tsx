@@ -14,6 +14,7 @@ import { AnalyticsSection } from '@/components/sections/analytics-section'
 import { HelpSection } from '@/components/sections/help-section'
 import { MembersSection } from '@/components/sections/members-section'
 import { KnowledgeSection } from '@/components/sections/knowledge-section'
+import { ReportSection } from '@/components/sections/report-section'
 import { Button } from '@/components/ui/button'
 import { MarkdownContent } from '@/components/markdown-content'
 import { Menu, Bell, Plus, HelpCircle, Moon, Sun, Trash2, X, Keyboard, Download, Sparkles, LayoutDashboard, Inbox, Newspaper, Calendar, Users, UsersRound, Archive, BarChart3, MapPin, LogOut } from 'lucide-react'
@@ -65,6 +66,7 @@ function sectionTitle(section: Section) {
     members: 'Участники',
     archive: 'Архив',
     analytics: 'Аналитика',
+    report: 'Отчёт',
     knowledge: 'Граф знаний',
     help: 'Справка',
   }
@@ -299,6 +301,7 @@ export function App() {
       case 'archive': return <ArchiveSection />
       case 'analytics': return <AnalyticsSection />
       case 'knowledge': return <KnowledgeSection />
+      case 'report': return <ReportSection />
       case 'help': return <HelpSection />
       default: return <KanbanBoard />
     }
